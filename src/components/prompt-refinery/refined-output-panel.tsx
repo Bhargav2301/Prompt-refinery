@@ -45,6 +45,7 @@ interface RefinedOutputPanelProps {
   explanationMode: boolean;
   promptType: string;
   canSave: boolean;
+  isSaving?: boolean;
   onSavePrompt: () => void;
   variant?: 'legacy' | 'workspace-v2';
   modeLabel?: string;
@@ -63,6 +64,7 @@ export function RefinedOutputPanel({
   explanationMode,
   promptType,
   canSave,
+  isSaving = false,
   onSavePrompt,
   variant = 'legacy',
   modeLabel = 'Clarift',
@@ -100,7 +102,7 @@ export function RefinedOutputPanel({
           {refinedPrompt && (
             <Button variant="outline" size="sm" onClick={onSavePrompt} disabled={!canSave}>
               <Save className="mr-2 h-4 w-4" />
-              Save Prompt
+              {isSaving ? 'Saving...' : 'Save Prompt'}
             </Button>
           )}
         </CardTitle>

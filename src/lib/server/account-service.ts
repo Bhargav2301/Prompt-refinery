@@ -4,6 +4,7 @@ import type { DecodedIdToken } from 'firebase-admin/auth';
 import type { PromptTechnique } from '@/lib/constants';
 import { PROJECT_TEMPLATES } from '@/lib/constants';
 import { estimateTokenCounts, normalizedSearchTerms } from '@/lib/stage2-utils';
+import type { SavedPromptInput } from '@/lib/saved-prompts';
 import {
   FREE_MANAGED_REFINEMENT_DAILY_LIMIT,
   FREE_SAVED_PROMPT_LIMIT,
@@ -37,24 +38,6 @@ interface UserProfile {
   savedPromptCount?: number;
   managedRefinementsDate?: string;
   managedRefinementsUsedToday?: number;
-}
-
-interface SavedPromptInput {
-  name: string;
-  originalPrompt: string;
-  refinedPrompt: string;
-  promptType: string;
-  latestVersion: number;
-  versionCount: number;
-  versions: Array<{
-    version: number;
-    rawPrompt: string;
-    refinedPrompt: string;
-    promptType: string;
-    createdAt: string;
-  }>;
-  folder?: string | null;
-  tags?: string[];
 }
 
 interface ProjectSessionInput {

@@ -1,6 +1,6 @@
 'use client';
 
-import { ChangeEvent, useState, useContext, useEffect, useMemo } from 'react';
+import { ChangeEvent, useState, useContext, useEffect, useMemo, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -23,6 +23,7 @@ import { Project } from './project-types';
 import { SubscriptionContext } from '@/context/subscription-context';
 import { isFreeTechnique } from '@/lib/subscription';
 import { savePromptAction } from '@/app/subscription-actions';
+import { buildSavedPromptInput } from '@/lib/saved-prompts';
 import { addProjectSessionAction } from '@/app/project-actions';
 import { useWorkflow } from '@/context/workflow-context';
 import type { ProjectMemoryEntry } from './stage2-types';
@@ -217,6 +218,8 @@ export function RefineryTab({
   onCreateProject,
 }: RefineryTabProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [isSavingPrompt, setIsSavingPrompt] = useState(false);
+  const savingPrompt = useRef(false);
   const [isTokenizing, setIsTokenizing] = useState(false);
   const [refinedPrompt, setRefinedPrompt] = useState<string | null>(null);
   const [rawPromptAtResult, setRawPromptAtResult] = useState<string | null>(null);
@@ -497,46 +500,40 @@ export function RefineryTab({
   };
 
   const handleSavePrompt = async () => {
-    if (!user || !firestore || !refinedPrompt) return;
+    if (!user || !refinedPrompt || savingPrompt.current) return;
+    const prompt = buildSavedPromptInput(promptVersions);
+    if (!prompt) {
+      toast({ variant: 'destructive', title: 'Could Not Save Prompt', description: 'Refine a prompt before saving. Your output is still available to copy.' });
+      return;
+    }
 
-    const rawPrompt = form.getValues('prompt');
-    const promptType = form.getValues('promptType');
-    const versions = promptVersions.length > 0
-      ? promptVersions
-      : [{
-          version: 1,
-          rawPrompt,
-          refinedPrompt,
-          promptType,
-          createdAt: new Date().toISOString(),
-        }];
-    const latestVersion = versions.at(-1)?.version ?? 1;
-
+    savingPrompt.current = true;
+    setIsSavingPrompt(true);
     try {
       const firebaseIdToken = await user.getIdToken();
-      await savePromptAction({
-        firebaseIdToken,
-        prompt: {
-        name: `Refined: ${rawPrompt.substring(0, 30)}...`,
-        originalPrompt: rawPrompt,
-        refinedPrompt,
-        promptType,
-        latestVersion,
-        versionCount: versions.length,
-        versions,
-        },
-      });
+      const result = await savePromptAction({ firebaseIdToken, prompt });
+      if (!result.ok) {
+        toast({
+          variant: 'destructive',
+          title: result.code === 'limit_reached' ? 'Saved Prompt Limit Reached' : result.code === 'authentication_required' ? 'Sign In Again' : 'Could Not Save Prompt',
+          description: result.message,
+        });
+        return;
+      }
 
       toast({
           title: 'Prompt Saved!',
           description: 'You can view your saved prompts in the "Saved Prompts" tab.',
       });
-    } catch (error) {
+    } catch {
       toast({
         variant: 'destructive',
-        title: error instanceof Error && error.name === 'SavedPromptLimitError' ? 'Saved Prompt Limit Reached' : 'Could Not Save Prompt',
-        description: error instanceof Error ? error.message : 'Please try again.',
+        title: 'Could Not Save Prompt',
+        description: 'Check your connection and sign-in session, then try saving again. Your output is still available to copy.',
       });
+    } finally {
+      savingPrompt.current = false;
+      setIsSavingPrompt(false);
     }
   };
 
@@ -576,7 +573,8 @@ export function RefineryTab({
       promptVersions={promptVersions}
       explanationMode={explanationMode}
       promptType={form.getValues('promptType')}
-      canSave={Boolean(user)}
+      canSave={Boolean(user) && !isSavingPrompt}
+      isSaving={isSavingPrompt}
       onSavePrompt={handleSavePrompt}
       variant={variant}
       modeLabel={refinementModeLabel(refinementMode)}
