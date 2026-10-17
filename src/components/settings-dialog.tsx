@@ -4,6 +4,7 @@ import { type ReactNode, useContext, useEffect, useState } from 'react';
 import { Database, KeyRound, Settings, ShieldCheck, Type, UserRound, WalletCards } from 'lucide-react';
 
 import { AdminPanel } from '@/components/admin-dialog';
+import { AccountSecurityPanel } from '@/components/auth/account-security-panel';
 import { ApiKeysPanel } from '@/components/api-keys-panel';
 import { BillingPanel } from '@/components/billing-panel';
 import { BrowserExtensionPanel } from '@/components/browser-extension-panel';
@@ -68,6 +69,7 @@ export function SettingsDialog({ trigger }: { trigger?: ReactNode }) {
             <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Access</p><p className="font-medium capitalize">{accountRole}</p></div>
           </div>
           <div className="rounded-md border p-3 text-xs text-muted-foreground"><p>Tenant: {tenantId || 'Initializing'}</p><p>Workspace: {workspaceId || 'Initializing'}</p></div>
+          <AccountSecurityPanel />
         </TabsContent>
         <TabsContent value="billing" className="pt-4"><BillingPanel /></TabsContent>
         <TabsContent value="developer" className="pt-4"><ApiKeysPanel enabled={capabilities.developerApi} /></TabsContent>

@@ -1,6 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
+import { sendEmailVerification } from 'firebase/auth';
+import { accountErrorMessage, emailActionSettings, newPasswordSchema } from '@/lib/account-security';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -31,17 +34,15 @@ import {
   initiateGoogleSignIn,
 } from '@/firebase/non-blocking-login';
 import { useAuth } from '@/firebase';
-import { FirebaseError } from 'firebase/app';
 import { Logo } from '@/components/icons/logo';
 import { BrandTypewriter } from '@/components/prompt-refinery/brand-typewriter';
 
 const signUpSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
-  password: z
-    .string()
-    .min(6, { message: 'Password must be at least 6 characters.' }),
+  password: newPasswordSchema,
+  confirmPassword: z.string(),
   promoCode: z.string().trim().max(100).optional(),
-});
+}).refine(value => value.password === value.confirmPassword, { path: ['confirmPassword'], message: 'The passwords do not match.' });
 
 const signInSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -55,7 +56,7 @@ export function LoginPage({ showBrandMessage = false }: { showBrandMessage?: boo
 
   const signUpForm = useForm<z.infer<typeof signUpSchema>>({
     resolver: zodResolver(signUpSchema),
-    defaultValues: { email: '', password: '', promoCode: '' },
+    defaultValues: { email: '', password: '', confirmPassword: '', promoCode: '' },
   });
 
   const signInForm = useForm<z.infer<typeof signInSchema>>({
@@ -63,29 +64,11 @@ export function LoginPage({ showBrandMessage = false }: { showBrandMessage?: boo
     defaultValues: { email: '', password: '' },
   });
 
-  const handleAuthError = (error: any) => {
-    let description = 'An unexpected error occurred. Please try again.';
-    if (error instanceof FirebaseError) {
-      switch (error.code) {
-        case 'auth/email-already-in-use':
-          description =
-            'This email is already in use. Please try signing in.';
-          break;
-        case 'auth/user-not-found':
-        case 'auth/wrong-password':
-          description = 'Invalid email or password. Please try again.';
-          break;
-        case 'auth/invalid-email':
-          description = 'Please enter a valid email address.';
-          break;
-        default:
-          description = error.message;
-      }
-    }
+  const handleAuthError = (error: unknown) => {
     toast({
       variant: 'destructive',
       title: 'Authentication Failed',
-      description,
+      description: accountErrorMessage(error),
     });
   };
 
@@ -93,6 +76,12 @@ export function LoginPage({ showBrandMessage = false }: { showBrandMessage?: boo
     setIsLoading(true);
     try {
       const credential = await initiateEmailSignUp(auth, values.email, values.password);
+      try {
+        await sendEmailVerification(credential.user, emailActionSettings(window.location.origin));
+        toast({ title: 'Verify your email', description: 'We sent a verification link to your signup email. Open it to confirm your account.' });
+      } catch {
+        toast({ title: 'Account created', description: 'The verification email could not be sent. Use Resend verification email in Settings.' });
+      }
       if (values.promoCode?.trim()) {
         try {
           const response = await fetch('/api/promo/redeem', {
@@ -150,7 +139,7 @@ export function LoginPage({ showBrandMessage = false }: { showBrandMessage?: boo
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">
-      <div className="w-full max-w-md space-y-6">
+      <div className="w-full max-w-md space-y-6 px-4 py-6">
         <div className="flex justify-center">
           <Logo variant="wordmark" className="h-20 w-64" />
           <h1 className="sr-only">Sign in to Clarift</h1>
@@ -216,6 +205,7 @@ export function LoginPage({ showBrandMessage = false }: { showBrandMessage?: boo
                   />
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
+                  <Link href="/auth/forgot-password" className="text-sm text-primary underline">Forgot password?</Link>
                   <Button
                     type="submit"
                     className="w-full"
@@ -308,6 +298,9 @@ export function LoginPage({ showBrandMessage = false }: { showBrandMessage?: boo
                   />
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
+                  <FormField control={signUpForm.control} name="confirmPassword" render={({ field }) => (
+                    <FormItem className="w-full"><FormLabel>Confirm password</FormLabel><FormControl><Input type="password" autoComplete="new-password" {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
                   <Button
                     type="submit"
                     className="w-full"
@@ -324,6 +317,7 @@ export function LoginPage({ showBrandMessage = false }: { showBrandMessage?: boo
                   >
                     Continue with Google
                   </Button>
+                  <Link href="/auth/forgot-password" className="text-sm text-primary underline">Already have an account? Reset your password</Link>
                 </CardFooter>
               </form>
             </Form>

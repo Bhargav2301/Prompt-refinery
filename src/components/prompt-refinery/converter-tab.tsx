@@ -191,7 +191,7 @@ export function ConverterTab({ projects, selectedProject }: ConverterTabProps) {
           <FileText className="h-5 w-5 text-primary" />
           <h2 className="text-lg font-semibold">Format Converter</h2>
         </div>
-        <p className="text-sm text-muted-foreground">Convert documents into reusable Markdown, project context, or a ready-to-refine prompt.</p>
+        <p className="text-sm text-muted-foreground">Convert documents into reusable Markdown or a ready-to-refine prompt.</p>
         <Button type="button" className="w-full" asChild disabled={isConverting}>
           <label htmlFor="converter-upload" className="cursor-pointer">
             <Upload className="h-4 w-4" />

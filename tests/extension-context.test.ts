@@ -70,8 +70,11 @@ test('manifest offers optional broad access and local omnibox entry without broa
   assert.deepEqual(manifest.optional_host_permissions, ['http://*/*', 'https://*/*']);
   assert.ok(!manifest.host_permissions.includes('<all_urls>'));
   assert.equal(manifest.omnibox.keyword, 'clarift');
-  assert.equal(manifest.content_scripts[0].all_frames, true);
-  for (const script of manifest.content_scripts[0].js) assert.ok(readFileSync(`extension/${script}`).length);
+  const chatScript = manifest.content_scripts.find((script: { js: string[] }) => script.js.includes('content.js'));
+  assert.equal(chatScript.all_frames, true);
+  for (const script of chatScript.js) assert.ok(readFileSync(`extension/${script}`).length);
+  const bridge = manifest.content_scripts.find((script: { js: string[] }) => script.js.includes('app-bridge.js'));
+  assert.deepEqual(bridge.matches, ['https://clarift.dpdns.org/*', 'https://clarift--clarift-e4f6f.us-east4.hosted.app/*', 'http://localhost:9002/*']);
 });
 
 function workerHarness() {
@@ -92,9 +95,13 @@ function workerHarness() {
       unregisterContentScripts: async () => { state.scripts = []; },
     },
     omnibox: { onInputStarted: event(), onInputEntered: event(), setDefaultSuggestion: async () => {} },
-    tabs: { create: async ({ url }: { url: string }) => { state.urls.push(url); } },
+    tabs: {
+      create: async ({ url }: { url: string }) => { state.urls.push(url); },
+      query: async () => [{ id: 7, title: 'Story', url: 'https://chatgpt.com/c/private-chat' }, { id: 8, title: 'Private mail', url: 'https://mail.google.com/mail' }],
+      get: async (id: number) => ({ id, url: id === 7 ? 'https://chatgpt.com/c/private-chat' : 'https://mail.google.com/mail' }),
+    },
   };
-  const context = vm.createContext({ chrome, AbortController, setTimeout, clearTimeout, crypto, fetch: async (_url: string, options: any) => {
+  const context = vm.createContext({ chrome, URL, AbortController, setTimeout, clearTimeout, crypto, fetch: async (_url: string, options: any) => {
     state.requests.push(JSON.parse(options.body));
     return new Response(JSON.stringify({ refinedPrompt: 'Refined', contextApplied: state.acknowledgeContext }));
   } });
@@ -120,6 +127,22 @@ test('broad activation registers only after permission and unregisters on revoca
   chrome.permissions.onRemoved.listeners[0]();
   await vm.runInContext('accessSync', context);
   assert.equal(state.scripts.length, 0);
+});
+
+test('Clarift app bridge lists only chatbot tabs and requires the trusted top-frame sender', async () => {
+  const { chrome, state } = workerHarness();
+  const listener = chrome.runtime.onMessage.listeners[0];
+  let called = false;
+  assert.equal(listener({ type: 'clarift-app', action: 'list-tabs' }, { url: 'https://evil.test/', frameId: 0 }, () => { called = true; }), false);
+  assert.equal(listener({ type: 'clarift-app', action: 'list-tabs' }, { url: 'https://clarift.dpdns.org/', frameId: 2 }, () => { called = true; }), false);
+  assert.equal(called, false);
+  const sender = { url: 'https://clarift.dpdns.org/', frameId: 0, tab: { id: 3 } };
+  const list = await new Promise<any>(resolve => listener({ type: 'clarift-app', action: 'list-tabs' }, sender, resolve));
+  assert.equal(list.tabs.length, 1); assert.equal(list.tabs[0].id, 7); assert.equal(list.tabs[0].url, undefined);
+  await new Promise(resolve => listener({ type: 'clarift-app', action: 'open-context', tabId: 7 }, sender, resolve));
+  assert.equal(state.urls.at(-1), 'chrome-extension://fixture/context.html?tab=7&clariftTarget=3');
+  const rejected = await new Promise<any>(resolve => listener({ type: 'clarift-app', action: 'open-context', tabId: 8 }, sender, resolve));
+  assert.equal(rejected.ok, false); assert.equal(state.requests.length, 0);
 });
 
 test('omnibox handoff keeps prompt text out of the navigation URL and makes no inference call', async () => {

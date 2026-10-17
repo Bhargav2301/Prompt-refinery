@@ -2,12 +2,13 @@
   "manifest_version": 3,
   "minimum_chrome_version": "119",
   "name": "Clarift Prompt Refinery",
-  "version": "2.3.1",
+  "version": "2.4.0",
   "description": "Refine web prompts and searches, and carry conversations between chatbots with a portable context pill.",
   "permissions": ["activeTab", "scripting", "storage", "tabs", "clipboardWrite"],
   "optional_host_permissions": ["http://*/*", "https://*/*"],
   "omnibox": { "keyword": "clarift" },
   "host_permissions": [
+    "https://clarift.dpdns.org/*",
     "https://clarift--clarift-e4f6f.us-east4.hosted.app/*",
     "http://localhost:9002/*"
   ],
@@ -21,6 +22,11 @@
   "options_page": "options.html",
   "content_scripts": [
     {
+      "matches": ["https://clarift.dpdns.org/*", "https://clarift--clarift-e4f6f.us-east4.hosted.app/*", "http://localhost:9002/*"],
+      "js": ["app-bridge.js"],
+      "run_at": "document_idle"
+    },
+    {
       "matches": [
         "https://chatgpt.com/*",
         "https://chat.openai.com/*",
@@ -31,6 +37,9 @@
         "https://perplexity.ai/*",
         "https://poe.com/*",
         "https://grok.com/*",
+        "https://chat.deepseek.com/*",
+        "https://chat.qwen.ai/*",
+        "https://qwen.ai/*",
         "https://aistudio.google.com/*"
       ],
       "js": ["context-core.js", "context-capture.js", "context-history.js", "content.js"],

@@ -4,7 +4,8 @@ import { Download, Puzzle, Settings2 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { version as extensionVersion } from '../../extension/manifest.json';
+import extensionManifest from '../../extension/manifest.json';
+const extensionVersion = extensionManifest.version;
 
 export function BrowserExtensionPanel({ enabled }: { enabled: boolean }) {
   return (
@@ -27,6 +28,7 @@ export function BrowserExtensionPanel({ enabled }: { enabled: boolean }) {
       <div className="mt-4 rounded-lg border bg-muted/30 p-4">
         <h4 className="mb-2 text-sm font-medium">What&apos;s new</h4>
         <ul className="list-disc space-y-2 pl-5 text-sm text-muted-foreground">
+          <li><strong className="text-foreground">Open-chat references in Clarift.</strong> In a Clarift chat, choose Add references → Import from open tab. Select a chatbot tab, review its context pill, and send it back with Use reviewed pill in Clarift. Select the exact prompt and attach any missing files before refining.</li>
           <li><strong className="text-foreground">More ways to refine.</strong> Use text and search fields, rich text editors, the standalone Refine text editor, or the clarift address-bar shortcut. Enable individual pages or opt into access across websites.</li>
           <li><strong className="text-foreground">Automatic chat history collection.</strong> Collect older messages as the conversation scrolls, with progress and stop controls, then return to your original position.</li>
           <li><strong className="text-foreground">Portable context pills.</strong> Review captured text, add your goal, confirmed decisions, constraints, and next steps, then copy an editable pill or download Markdown. Choose compact excerpts or all captured text, and import text or Markdown transcripts.</li>
@@ -40,6 +42,7 @@ export function BrowserExtensionPanel({ enabled }: { enabled: boolean }) {
         <li>{enabled ? 'Open the extension settings and choose Connect Clarift Account.' : 'Sign in to Clarift before connecting the extension.'}</li>
         <li>Approve the account link in the Clarift tab, then enable it on your chatbot page. No provider key is required.</li>
         <li>Choose Create context pill to collect chat history automatically, review the draft, and copy it into a new chat.</li>
+        <li>To use an open conversation as a Clarift reference, start from Add references in Clarift. Reload the Clarift tab after installing or updating the extension.</li>
         <li>For the address bar, type clarift, press Tab or Space, and enter a prompt. Optional access to all websites is available in the extension popup.</li>
       </ol>
       <p className="mt-3 text-sm text-muted-foreground">Updating an existing installation? Extract this ZIP into the folder you originally loaded, click Reload on the browser&apos;s Extensions page, then reload your chat tabs. The popup should show v{extensionVersion}.</p>

@@ -6,7 +6,8 @@ import {
   BarChart3,
   Crown,
   FileText,
-  FolderKanban,
+  History,
+  Images,
   Gauge,
   Library,
   LogOut,
@@ -41,20 +42,21 @@ import {
 } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
 
-export type WorkspaceDestination = 'refinery' | 'evaluator' | 'converter' | 'saved' | 'projects' | 'analytics' | 'shared';
+export type WorkspaceDestination = 'refinery' | 'history' | 'library' | 'evaluator' | 'converter' | 'saved' | 'analytics' | 'shared';
 
 const destinations = [
   { id: 'refinery', label: 'Workspace', icon: Wand2, pro: false },
+  { id: 'history', label: 'History', icon: History, pro: false },
+  { id: 'library', label: 'Prompt library', icon: Images, pro: false },
   { id: 'evaluator', label: 'Evaluator', icon: Gauge, pro: false },
   { id: 'converter', label: 'Converter', icon: FileText, pro: false },
   { id: 'saved', label: 'Saved', icon: Library, pro: false },
-  { id: 'projects', label: 'Projects', icon: FolderKanban, pro: true },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, pro: true },
   { id: 'shared', label: 'Shared', icon: Users, pro: true },
 ] as const;
 
-const mobilePrimary = ['refinery', 'projects', 'saved', 'analytics'] as const;
-const mobileMore = ['evaluator', 'converter', 'shared'] as const;
+const mobilePrimary = ['refinery', 'history', 'library', 'saved'] as const;
+const mobileMore = ['evaluator', 'converter', 'analytics', 'shared'] as const;
 
 interface WorkspaceShellProps {
   activeDestination: WorkspaceDestination;

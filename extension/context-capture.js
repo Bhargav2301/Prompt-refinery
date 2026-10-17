@@ -99,6 +99,13 @@
       for (const node of nodes) {
         if (remaining <= 0 || messages.length >= 2000) { truncated = true; break; }
         const read = renderedText(node, remaining);
+        const files = [...node.querySelectorAll('[data-testid*="attachment"], [data-testid*="file"], a[download], img[alt]')]
+          .filter(visible).map(element => element.getAttribute('download') || element.getAttribute('alt') || element.textContent || '')
+          .map(text => text.trim().slice(0, 200)).filter(text => /\.(pdf|docx?|md|txt|csv|xlsx?|pptx?|png|jpe?g|webp)\b/i.test(text));
+        if (files.length) {
+          const combined = `${read.text}\n[Attached files mentioned: ${[...new Set(files)].join(', ')}. Upload originals in Clarift.]`;
+          read.text = combined.slice(0, remaining); read.truncated ||= combined.length > remaining;
+        }
         if (read.text) { messages.push({ id: messageId(node), role: role(node), text: read.text }); remaining -= read.text.length; }
         truncated ||= read.truncated;
       }

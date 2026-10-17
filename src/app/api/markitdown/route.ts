@@ -130,7 +130,7 @@ export async function POST(request: Request) {
         createdAt: Timestamp.now(),
       });
     }
-    await metadataBatch.commit();
+    if (formData.get('temporary') !== 'true') await metadataBatch.commit();
     await recordTenantUsage({
       requestId,
       tenantId: context.tenantId,
