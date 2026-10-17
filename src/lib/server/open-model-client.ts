@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { GoogleAuth } from 'google-auth-library';
+import type { ModelMessage } from '@/lib/model-messages';
 
 export type OpenModelProvider = 'gemma' | 'openrouter' | 'together';
 
@@ -19,7 +20,7 @@ interface OpenModelCompletionInput {
   provider: OpenModelProvider;
   apiKey: string;
   model: string;
-  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>;
+  messages: ModelMessage[];
   maxTokens: number;
   timeoutMs: number;
   responseSchema?: { name: string; schema: Record<string, unknown> };

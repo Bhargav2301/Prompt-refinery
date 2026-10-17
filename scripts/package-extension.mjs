@@ -8,7 +8,7 @@ const extensionDirectory = join(projectRoot, 'extension');
 const outputPath = join(projectRoot, 'public', 'downloads', 'clarift-browser-extension.zip');
 const syncUnpacked = process.argv.includes('--sync-unpacked');
 const previousZip = syncUnpacked ? await readFile(outputPath).then((buffer) => new AdmZip(buffer)).catch(() => null) : null;
-const requiredFiles = ['manifest.json', 'background.js', 'content.js', 'content.css', 'options.html', 'options.js', 'options.css', 'popup.html', 'popup.js', 'popup.css', 'context-core.js', 'context-capture.js', 'context-history.js', 'page-access.js', 'context.html', 'context.js', 'context.css'];
+const requiredFiles = ['app-bridge.js', 'manifest.json', 'background.js', 'content.js', 'content.css', 'options.html', 'options.js', 'options.css', 'popup.html', 'popup.js', 'popup.css', 'context-core.js', 'context-capture.js', 'context-history.js', 'page-access.js', 'context.html', 'context.js', 'context.css'];
 
 async function filesUnder(directory) {
   const entries = await readdir(directory, { withFileTypes: true });

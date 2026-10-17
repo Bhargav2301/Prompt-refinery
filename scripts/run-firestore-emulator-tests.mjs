@@ -64,7 +64,7 @@ async function run() {
 
   try {
     await waitForPort(port, emulator);
-    const tests = spawn(process.execPath, ['--import', 'tsx', '--test', 'tests/emulator/firestore.test.ts'], {
+    const tests = spawn(process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1', 'tests/emulator/firestore.test.ts', 'tests/emulator/chats.test.ts'], {
       cwd: process.cwd(),
       env: {
         ...process.env,

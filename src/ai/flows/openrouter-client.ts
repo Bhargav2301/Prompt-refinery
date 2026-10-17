@@ -1,16 +1,10 @@
 import { z } from 'genkit';
 import { recordOpenRouterUsage } from '@/lib/server/provider-usage-context';
+import type { ModelMessage } from '@/lib/model-messages';
 
 const OPENROUTER_CHAT_COMPLETIONS_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const MAX_OPENROUTER_RESPONSE_CHARACTERS = 300000;
 export const OPENROUTER_REQUEST_TIMEOUT_MS = 45000;
-
-const OpenRouterChatMessageSchema = z.object({
-  role: z.enum(['system', 'user', 'assistant']),
-  content: z.string(),
-});
-
-type OpenRouterChatMessage = z.infer<typeof OpenRouterChatMessageSchema>;
 
 const OpenRouterChatResponseSchema = z.object({
   choices: z.array(
@@ -31,7 +25,7 @@ const OpenRouterChatResponseSchema = z.object({
 interface OpenRouterChatInput {
   apiKey: string;
   model: string;
-  messages: OpenRouterChatMessage[];
+  messages: ModelMessage[];
   temperature?: number;
   jsonMode?: boolean;
 }

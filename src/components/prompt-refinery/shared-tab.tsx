@@ -70,7 +70,7 @@ export function SharedTab() {
     <CardHeader><CardTitle className="flex items-center justify-between gap-3"><span>Shared with Me</span><Button type="button" variant="outline" size="icon" onClick={load}><RefreshCw className="h-4 w-4" /><span className="sr-only">Refresh shared items</span></Button></CardTitle></CardHeader>
     <CardContent>
       {loading ? <div className="space-y-3"><Skeleton className="h-14" /><Skeleton className="h-14" /></div> : <Accordion type="single" collapsible className="space-y-2">
-        {items.map((item) => {
+        {items.filter(item => item.resourceType === 'savedPrompt').map((item) => {
           const draft = drafts[item.id] ?? { originalPrompt: item.resource.originalPrompt ?? '', refinedPrompt: item.resource.refinedPrompt ?? '', title: '', content: '' };
           return <AccordionItem key={item.id} value={item.id} className="rounded-md border px-4">
             <AccordionTrigger className="hover:no-underline"><div className="flex min-w-0 flex-1 items-center gap-3 pr-3"><FolderKanban className="h-4 w-4 shrink-0 text-primary" /><div className="min-w-0 text-left"><p className="truncate font-medium">{item.resource.name || item.resourceName}</p><p className="text-xs text-muted-foreground">{item.ownerEmail}</p></div><Badge variant="outline" className="ml-auto capitalize">{item.permission}</Badge></div></AccordionTrigger>

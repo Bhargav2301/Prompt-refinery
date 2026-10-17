@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { Timestamp } from 'firebase-admin/firestore';
 import { z } from 'zod';
+import type { ModelMessage } from '@/lib/model-messages';
 
 import {
   chooseBasicModeStatus,
@@ -51,7 +52,7 @@ interface FreeGatewayRequest<T> {
   idempotencyKey: string;
   source: FreeGatewaySource;
   prepared: {
-    messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>;
+    messages: ModelMessage[];
     schema: { name: string; schema: Record<string, unknown> };
     outputSchema: z.ZodType<T>;
     repairMessage?: string;

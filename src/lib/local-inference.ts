@@ -8,6 +8,8 @@ interface LocalRefinementInput {
   promptType: string;
   executionMode: LocalRefinementMode;
   projectMemory?: string;
+  conversationContext?: string;
+  creativeInstructions?: string;
   explanationMode?: boolean;
   maxCharacters?: number;
   attachments?: Array<{ name: string; mimeType: string; content: string }>;
@@ -48,6 +50,8 @@ function techniqueInstructions(promptType: string) {
 
 function referenceContext(input: LocalRefinementInput) {
   const sections: string[] = [];
+  if (input.creativeInstructions) sections.push(input.creativeInstructions);
+  if (input.conversationContext?.trim()) sections.push(`Conversation reference (excerpt):\n${clip(input.conversationContext, 3500)}`);
   if (input.projectMemory?.trim()) sections.push(`Project context:\n${clip(input.projectMemory, 2200)}`);
   if (input.attachments?.length) {
     const remaining = input.attachments.slice(0, 5).map((attachment) =>

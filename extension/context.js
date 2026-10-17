@@ -2,6 +2,22 @@ const byId = (id) => document.getElementById(id);
 const core = globalThis.ClariftContext;
 const params = new URLSearchParams(location.search);
 const tabId = params.has('tab') ? Number(params.get('tab')) : null;
+const clariftTarget = params.has('clariftTarget') ? Number(params.get('clariftTarget')) : null;
+if (Number.isInteger(clariftTarget) && clariftTarget >= 0) {
+  byId('use-in-clarift').hidden = false;
+  byId('use-in-clarift').addEventListener('click', async () => {
+    try {
+      const text = byId('pill-output').value.trim();
+      if (!text || text.length > 120000) throw new Error('Build and review a pill of up to 120,000 characters before importing it.');
+      const target = await chrome.tabs.get(clariftTarget);
+      if (!['https://clarift.dpdns.org', 'https://clarift--clarift-e4f6f.us-east4.hosted.app', 'http://localhost:9002'].includes(new URL(target.url).origin)) throw new Error('The Clarift tab has moved. Return to Clarift and start the import again.');
+      const response = await chrome.tabs.sendMessage(clariftTarget, { type: 'clarift-deliver-reference', text, title: currentCapture?.title || 'Chat context' }, { frameId: 0 });
+      if (!response?.ok) throw new Error(response?.error || 'Reload Clarift, then start the import again.');
+      await chrome.tabs.update(clariftTarget, { active: true });
+      status('Context pill added to Clarift. Review the selected prompt and missing attachments there.');
+    } catch (error) { report(error); }
+  });
+}
 let sourceTabUrl = null;
 let captures = [];
 let currentCapture = null;

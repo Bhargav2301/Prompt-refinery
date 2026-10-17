@@ -86,7 +86,7 @@ export function WorkspaceV2Fixture() {
           selectedProject={null}
           projects={[]}
           isLoadingProjects={false}
-          allowProjectSelection
+          allowProjectSelection={false}
           onSelectProject={() => undefined}
           onCreateProject={() => undefined}
           mode={mode}

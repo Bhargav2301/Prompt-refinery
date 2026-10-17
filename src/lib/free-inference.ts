@@ -140,8 +140,13 @@ export function chooseBasicModeStatus(input: {
 }
 
 export function estimateSerializedTokens(value: unknown) {
-  const serialized = typeof value === 'string' ? value : JSON.stringify(value);
-  return Math.max(1, Math.ceil(serialized.length / 3.5));
+  let imageTokens = 0;
+  const serialized = typeof value === 'string' ? value : JSON.stringify(value, (key, item) => {
+    // Base64 is transport encoding, not text tokens. App images are resized to 1024px.
+    if (key === 'image_url' && item && typeof item.url === 'string' && item.url.startsWith('data:image/')) { imageTokens += 2048; return { url: '[reference image]' }; }
+    return item;
+  });
+  return Math.max(1, Math.ceil(serialized.length / 3.5) + imageTokens);
 }
 
 export function priceForMaximumAttempt(input: {

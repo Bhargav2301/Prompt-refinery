@@ -79,6 +79,26 @@ chrome.runtime.onInstalled.addListener(async () => {
 });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type === 'clarift-app') {
+    let senderOrigin;
+    try { senderOrigin = new URL(_sender.url).origin; } catch { return false; }
+    if (_sender.frameId !== 0 || !['https://clarift.dpdns.org', 'https://clarift--clarift-e4f6f.us-east4.hosted.app', 'http://localhost:9002'].includes(senderOrigin)) return false;
+    const supported = url => {
+      try { return new URL(url).protocol === 'https:' && ['chatgpt.com', 'chat.openai.com', 'claude.ai', 'grok.com', 'chat.deepseek.com', 'chat.qwen.ai', 'qwen.ai', 'gemini.google.com', 'www.perplexity.ai', 'perplexity.ai'].includes(new URL(url).hostname); } catch { return false; }
+    };
+    (async () => {
+      if (message.action === 'list-tabs') {
+        const tabs = (await chrome.tabs.query({})).filter(tab => supported(tab.url));
+        return { ok: true, tabs: tabs.map(tab => ({ id: tab.id, title: tab.title || 'Open chat', provider: new URL(tab.url).hostname })) };
+      }
+      if (message.action !== 'open-context' || !Number.isInteger(message.tabId)) throw new Error('Choose an open chat tab.');
+      const tab = await chrome.tabs.get(message.tabId);
+      if (!supported(tab.url)) throw new Error('That tab is no longer an accessible chatbot conversation.');
+      await chrome.tabs.create({ url: chrome.runtime.getURL(`context.html?tab=${tab.id}&clariftTarget=${_sender.tab.id}`) });
+      return { ok: true };
+    })().then(sendResponse).catch(error => sendResponse({ ok: false, error: error.message || 'The chat could not be opened.' }));
+    return true;
+  }
   if (message?.type === 'clarift-discovered') {
     const pending = frameDiscoveries.get(message.requestId);
     if (pending && _sender.tab?.id === pending.tabId && Number.isInteger(_sender.frameId)) {
