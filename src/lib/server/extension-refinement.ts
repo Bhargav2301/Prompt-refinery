@@ -1,7 +1,10 @@
+import { revisionObservationSchema } from '@/lib/refinement-observation';
 import { z } from 'zod';
 import { MAX_PROMPT_CHARACTERS } from '@/lib/input-limits';
 
 export const extensionRefinementSchema = z.object({
+  analyticsConsent: z.boolean().default(false),
+  revision: revisionObservationSchema.optional(),
   prompt: z.string().trim().min(1).max(MAX_PROMPT_CHARACTERS),
   technique: z.enum(['Zero-shot', 'Few-shot', 'Chain-of-thought', 'Tree-of-thoughts', 'Role / persona', 'Prompt chaining', 'ReAct', 'Meta / reflection']).default('Zero-shot'),
   mode: z.enum(['quick_refine', 'guided_fix', 'full_council']).default('quick_refine'),

@@ -195,6 +195,46 @@ try {
   await editor.screenshot({ path: join(root, 'tmp', 'extension-context', 'context-mobile.png'), fullPage: true });
   assert.deepEqual(errors, []);
   console.log('PASS local pill workflow, clipboard copy, Markdown download, desktop/mobile layout, no page errors');
+  const options = await browser.newPage();
+  const optionsErrors = [];
+  options.on('pageerror', error => optionsErrors.push(error.message));
+  await options.addInitScript(() => {
+    const local = { apiBase: 'https://untrusted.invalid' }; const session = {};
+    globalThis.optionState = { local, session, tabs: [] };
+    const store = values => ({ get: async defaults => ({ ...defaults, ...values }), set: async patch => Object.assign(values, patch), remove: async keys => { for (const key of [].concat(keys)) delete values[key]; } });
+    globalThis.chrome = { storage: { local: store(local), session: store(session) }, tabs: { create: async tab => optionState.tabs.push(tab) } };
+  });
+  const linkRequests = [];
+  await options.route('https://clarift.dpdns.org/api/extension/**', async route => {
+    const path = new URL(route.request().url()).pathname; linkRequests.push(path);
+    const body = path.endsWith('/start') ? { verificationUrl: `${base}/approve-fixture`, deviceCode: 'synthetic-device', userCode: 'TEST-CODE', expiresIn: 30, interval: 2 } : path.endsWith('/token') ? { status: 'issued', accessToken: 'synthetic-access', refreshToken: 'synthetic-refresh', deviceId: 'synthetic-device' } : {};
+    await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify(body) });
+  });
+  await options.goto(`${base}/extension/options.html`);
+  await options.waitForFunction(() => document.querySelector('#account-status').textContent === 'Not connected');
+  assert.equal(await options.locator('input[type=url]').count(), 0);
+  assert.equal(await options.locator('button[type=submit]').count(), 0);
+  assert.equal(await options.locator('#analytics-consent').isChecked(), false);
+  await options.locator('#mode').selectOption('guided_fix');
+  await options.waitForFunction(() => optionState.local.mode === 'guided_fix');
+  await options.locator('#technique').selectOption('Role / persona');
+  await options.locator('#analytics-consent').check();
+  await options.waitForFunction(() => optionState.local.analyticsConsent === true);
+  await options.locator('#connect').click();
+  await options.waitForFunction(() => document.querySelector('#account-status').textContent === 'Connected to Clarift');
+  assert.deepEqual(linkRequests, ['/api/extension/device/start', '/api/extension/device/token']);
+  assert.equal(await options.evaluate(() => optionState.session.accessToken), 'synthetic-access');
+  await options.screenshot({ path: join(root, 'tmp', 'extension-context', 'settings-2.5-desktop.png'), fullPage: true });
+  await options.setViewportSize({ width: 390, height: 844 });
+  assert.equal(await options.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  await options.locator('#analytics-consent').uncheck();
+  await options.waitForFunction(() => optionState.local.analyticsConsent === false);
+  await options.locator('#sign-out').click();
+  await options.waitForFunction(() => document.querySelector('#account-status').textContent === 'Not connected');
+  assert.equal(await options.evaluate(() => optionState.session.accessToken), undefined);
+  assert.deepEqual(optionsErrors, []);
+  console.log('PASS settings: no API URL, trusted default despite stale override, autosave, opt-in/withdrawal, mocked secure link and sign-out, mobile layout');
+  await options.close();
   if (process.env.CLARIFT_EXTENSION_EXECUTABLE) {
     const extension = await chromium.launchPersistentContext('', {
       executablePath: process.env.CLARIFT_EXTENSION_EXECUTABLE, headless: true,
@@ -226,6 +266,31 @@ try {
       assert.match(await workbench.locator('#status').textContent(), /Copied/);
       assert.deepEqual(extensionErrors, []);
       console.log('PASS real unpacked extension: worker discovery, frame messaging, automatic history collection, draft creation, clipboard copy');
+      await worker.evaluate(async () => {
+        await chrome.storage.session.set({ accessToken: 'synthetic-access-token' });
+        await chrome.storage.local.set({ apiBase: 'https://untrusted.invalid', mode: 'quick_refine', technique: 'Zero-shot', analyticsConsent: false });
+        globalThis.syntheticRequests = [];
+        globalThis.fetch = async (url, options) => {
+          syntheticRequests.push({ url, body: JSON.parse(options.body) });
+          return new Response(JSON.stringify({ refinedPrompt: 'Synthetic refined prompt', qualityTier: 'generative', contextApplied: false }));
+        };
+      });
+      await source.locator('textarea').fill('Synthetic extension refinement');
+      await source.locator('textarea').focus();
+      await source.locator('.clarift-extension-action').click();
+      await source.waitForFunction(() => document.querySelector('textarea').value === 'Synthetic refined prompt');
+      await worker.evaluate(() => chrome.storage.local.set({ technique: 'Role / persona', analyticsConsent: true }));
+      await source.locator('.clarift-extension-action').click();
+      await source.waitForFunction(() => !document.querySelector('.clarift-extension-action').disabled);
+      const nativeRequests = await worker.evaluate(() => syntheticRequests);
+      assert.equal(nativeRequests.length, 2);
+      assert.equal(nativeRequests[0].url, 'https://clarift.dpdns.org/api/extension/refine');
+      assert.equal(nativeRequests[0].body.analyticsConsent, false);
+      assert.equal(nativeRequests[1].body.analyticsConsent, true);
+      assert.equal(nativeRequests[1].body.revision.kind, 'redo');
+      assert.deepEqual(nativeRequests[1].body.revision.changedParameters, ['technique']);
+      assert.equal(nativeRequests[1].body.previous, undefined);
+      console.log('PASS real unpacked extension refinement: native storage, content/worker messaging, fixed API origin, replacement, redo and changed technique (mocked inference)');
     } finally { await extension.close(); }
   }
 } finally {

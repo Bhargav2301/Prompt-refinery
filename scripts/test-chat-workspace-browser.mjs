@@ -14,6 +14,7 @@ const root = resolve(import.meta.dirname, '..');
 const user = `const user = { email: 'synthetic@example.test', emailVerified: false, providerData: [{providerId:'password'}], getIdToken: async () => 'synthetic-token' }; export const useFirebase = () => ({ user }); export const useAuth = () => ({});`;
 const mocks = {
   '@/firebase': user,
+  '@/lib/account-email-client': `export async function requestVerificationEmail() { window.authCalls.push('verification-email'); }`,
   '@/firebase/non-blocking-login': `export async function initiateEmailSignUp() { window.authCalls.push('signup'); return {user:{getIdToken:async()=> 'synthetic-token'}}; } export async function initiateEmailSignIn() {} export async function initiateGoogleSignIn() {} `,
   '@/hooks/use-toast': `export const useToast = () => ({toast: value => window.testToasts.push(value)});`,
   '@/context/subscription-context': `import { createContext } from 'react'; export const SubscriptionContext = createContext({ refreshTenant: async () => {}, updateFreeAllowance: () => {}, capabilities: { byok: false } });`,
@@ -68,12 +69,23 @@ try {
   const nav = page.getByTestId('workspace-mobile-nav');
   await nav.getByRole('button', { name: 'History', exact: true }).click(); await page.getByRole('button', { name: /Write a story about a lighthouse.*refinements/ }).click();
   assert.equal(await page.getByText('Refined: Make the ending hopeful', { exact: true }).count(), 1);
-  console.log('PASS saved history, automatic title, reopen and follow-up context');
+  assert.equal(requests[0].analyticsConsent, false);
+  assert.equal(requests[1].parentTurnId, undefined);
+  await page.getByLabel(/Share optional refinement statistics/).check();
+  await page.getByRole('button', { name: 'Refine this version', exact: true }).first().click();
+  assert.equal(await prompt.inputValue(), 'Refined: Write a story about a lighthouse');
+  await prompt.fill('Refined: Write a story about a lighthouse with a new ending');
+  await page.getByRole('button', { name: 'Refine prompt', exact: true }).click();
+  await page.getByText('Refined: Refined: Write a story about a lighthouse with a new ending', { exact: true }).waitFor();
+  assert.equal(requests.at(-1).parentTurnId, requests[0].requestId);
+  assert.equal(requests.at(-1).analyticsConsent, true);
+  await page.getByLabel(/Share optional refinement statistics/).uncheck();
+  console.log('PASS saved history, title, reopen, follow-up, edited redo ancestry, opt-in and withdrawal');
   saveFailure = true;
   await prompt.fill('Preserve my output when storage fails'); await page.getByRole('button', { name: 'Refine prompt', exact: true }).click();
   await page.getByText('Refined: Preserve my output when storage fails', { exact: true }).waitFor();
   await page.getByRole('button', { name: 'Retry saving', exact: true }).click(); await page.getByText('Chat saved to history.', { exact: true }).waitFor();
-  assert.equal([...store.values()][0].turns.length, 3); saveFailure = false;
+  assert.equal([...store.values()][0].turns.length, 4); saveFailure = false;
   console.log('PASS storage failure preserves the result and retry saves the complete conversation');
   await page.getByRole('button', { name: 'New chat', exact: true }).click(); await page.getByRole('switch', { name: 'Temporary chat' }).click();
   await prompt.fill('Temporary secret draft'); await page.getByRole('button', { name: 'Refine prompt', exact: true }).click(); await page.getByText('Refined: Temporary secret draft', { exact: true }).waitFor();

@@ -1767,7 +1767,7 @@ test('browser extension is packaged for in-app testing and supports chatbot acti
   const archive = readFileSync('public/downloads/clarift-browser-extension.zip');
 
   assert.equal(manifest.manifest_version, 3);
-  assert.equal(manifest.version, '2.4.0');
+  assert.equal(manifest.version, '2.5.0');
   assert.deepEqual(manifest.permissions.sort(), ['activeTab', 'clipboardWrite', 'scripting', 'storage', 'tabs']);
   for (const chatbot of ['chatgpt.com', 'claude.ai', 'gemini.google.com', 'copilot.microsoft.com', 'perplexity.ai', 'poe.com', 'grok.com']) {
     assert.ok(manifest.content_scripts.find((script: { js: string[] }) => script.js.includes('content.js')).matches.some((match: string) => match.includes(chatbot)));

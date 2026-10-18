@@ -43,10 +43,11 @@ export async function reserveCredits(input: {
   principalId: string;
   workspaceId: string;
   task: ClariftTask;
+  source?: 'app' | 'api' | 'extension';
   idempotencyKey: string;
   requestId?: string;
-}): Promise<CreditReservation> {
-  const firestore = getAdminFirestore();
+}, dependencies = { getFirestore: getAdminFirestore }): Promise<CreditReservation> {
+  const firestore = dependencies.getFirestore();
   const id = reservationId(input.tenantId, input.idempotencyKey);
   const requestId = input.requestId || randomUUID();
   const estimatedCredits = taskCost(input.task);
@@ -63,6 +64,7 @@ export async function reserveCredits(input: {
     if (existing.exists) {
       const data = existing.data() as CreditReservation;
       if (data.tenantId !== input.tenantId) throw new Error('Credit reservation tenant mismatch.');
+      if ('source' in data && data.source !== (input.source ?? 'app')) throw new Error('Credit reservation source mismatch.');
       if (data.task !== input.task) throw new Error('An idempotency key cannot be reused for a different task.');
       if (data.status === 'settled') return { ...data, id };
       if (data.status === 'reserved') {
@@ -75,6 +77,7 @@ export async function reserveCredits(input: {
       if (estimatedCredits > Math.max(retryBalance - retryReserved, 0)) throw new InsufficientCreditsError();
       transaction.set(reservationRef, {
         status: 'reserved',
+        source: input.source ?? 'app',
         estimatedCredits,
         finalCredits: null,
         requestId,
@@ -100,6 +103,7 @@ export async function reserveCredits(input: {
       workspaceId: input.workspaceId,
       principalId: input.principalId,
       task: input.task,
+      source: input.source ?? 'app',
       status: 'reserved',
       estimatedCredits,
       finalCredits: null,
@@ -118,8 +122,8 @@ export async function reserveCredits(input: {
   });
 }
 
-export async function settleCredits(reservationIdValue: string, finalCredits?: number) {
-  const firestore = getAdminFirestore();
+export async function settleCredits(reservationIdValue: string, finalCredits?: number, dependencies = { getFirestore: getAdminFirestore }) {
+  const firestore = dependencies.getFirestore();
   const reservationRef = firestore.doc(`creditReservations/${reservationIdValue}`);
   return firestore.runTransaction(async (transaction) => {
     const reservation = await transaction.get(reservationRef);
@@ -147,6 +151,7 @@ export async function settleCredits(reservationIdValue: string, finalCredits?: n
       workspaceId: data.workspaceId,
       principalId: data.principalId,
       type: 'usage_charge',
+      source: ['app', 'api', 'extension'].includes(data.source) ? data.source : 'unknown',
       task: data.task,
       amount: charged,
       balanceDelta: -charged,

@@ -21,6 +21,7 @@ export async function POST(request: Request) {
       inferenceMode: 'managed',
       idempotencyKey: request.headers.get('idempotency-key') || `${caller.deviceId}:${Date.now()}`,
       source: 'extension',
+      refinementAnalytics: { consent: input.analyticsConsent, requested: input.technique, revision: input.revision },
       refinement: { prompt: input.prompt, promptType: input.technique, explanationMode: false, projectMemory: extensionProjectMemory(input.context) },
     });
     return NextResponse.json({

@@ -144,6 +144,7 @@ export async function reclaimExpiredFreeReservations(tenantId: string, now = Dat
 export async function reserveFreeQuota(input: {
   context: TenantContext;
   task: FreeInferenceTask;
+  source?: 'app' | 'api' | 'extension';
   requestId: string;
   now?: Date;
   allowancePlan?: InferenceAllowancePlan;
@@ -190,6 +191,7 @@ export async function reserveFreeQuota(input: {
       workspaceId: input.context.workspaceId,
       principalId: input.context.principalId,
       task: input.task,
+      source: input.source ?? 'app',
       kind,
       units,
       updatedAt: Timestamp.fromDate(now),

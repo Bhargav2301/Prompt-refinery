@@ -1,6 +1,8 @@
 # Clarift browser extension
 
-Version 2.4.0 connects open chatbot conversations to Clarift's Add references workflow, alongside automatic chat-history collection, whole-chat handoff requests, and the standalone text editor. ChatGPT, Claude, Gemini, Copilot, Perplexity, Poe, Grok, DeepSeek, Qwen, and Google AI Studio have built-in activation where the browser permits it. Other HTTP(S) pages can be activated with **Enable on this page** or optional **Always enable on all websites**.
+Version 2.5.0 removes API URL setup and saves preferences automatically. Connect your Clarift account, approve it once, then refine. Optional technique/redo statistics are off by default and can be enabled or disabled in settings. Website and extension accounting remain separate.
+
+It connects open chatbot conversations to Clarift's Add references workflow, alongside automatic chat-history collection, whole-chat handoff requests, and the standalone text editor. ChatGPT, Claude, Gemini, Copilot, Perplexity, Poe, Grok, DeepSeek, Qwen, and Google AI Studio have built-in activation where the browser permits it. Other HTTP(S) pages can be activated with **Enable on this page** or optional **Always enable on all websites**.
 
 Refinement uses Clarift managed inference and never requires a provider key. Short-lived access tokens remain in Chrome session storage; the rotating device refresh token is revocable from Clarift. Local capture, pill creation, and export need no account and do not send transcripts to Clarift. Scrolling may cause the source website to load earlier messages through its normal history requests.
 
@@ -58,6 +60,6 @@ Research, future automatic memory, and shared-project versioning: [design note](
 - Manually load the unpacked extension for Chrome/Edge permission prompts, address-bar keyword, actual chatbot DOM compatibility, streaming/virtualized history, and deployed-server acceptance before release. The browser fixture checks are not a substitute for those live checks.
 - Set `CLARIFT_EXTENSION_EXECUTABLE` to a compatible browser binary and `CLARIFT_FIXTURE_PORT=9002` to also run real unpacked-extension messaging, automatic capture, draft, and copy checks in a temporary profile with a local synthetic chat. Port 9002 must be free; it is already permitted by the development manifest. This was exercised in Comet; no personal browsing profile is used.
 - `node scripts/package-extension.mjs --sync-unpacked` also refreshes the existing `public/downloads/clarift-browser-extension` test copy, replacing only files that still match the previous ZIP. User-modified and unrelated files are preserved. Reload the extension and source pages after updating.
-# Clarift v2.4.0: use open chats as references
+## Use open chats as references
 
 In Clarift, choose **Add references → Import from open tab**. Select a chatbot conversation, collect its history, review/build the context pill, then choose **Use reviewed pill in Clarift**. Clarift lets you select the exact source prompt and upload missing documents or images before refinement. The bridge only runs on Clarift's own pages. Reload Clarift and chatbot tabs after updating the extension.

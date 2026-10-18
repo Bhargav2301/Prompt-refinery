@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 
 import { getAdminFirestore } from './firebase-admin';
 import { ensurePersonalTenant, personalTenantId, personalWorkspaceId } from './tenant-service';
+import { projectLegacyUsageEvent } from './legacy-usage-migration';
 
 const MIGRATION_VERSION = 2;
 
@@ -17,11 +18,28 @@ async function copyCollection(input: {
   workspaceId: string;
   uid: string;
   apply: boolean;
-  extra?: Record<string, unknown>;
   namespaceDocumentIds?: boolean;
-}) {
-  const firestore = getAdminFirestore();
+  extra?: Record<string, unknown>;
+}, firestore: ReturnType<typeof getAdminFirestore>, now: Timestamp) {
   const snapshot = await firestore.collection(input.sourcePath).get();
+  if (input.targetPath === 'usageEvents') {
+    const eligible = snapshot.docs.flatMap((document) => {
+      const data = projectLegacyUsageEvent(document.data(), { ...input, migrationVersion: MIGRATION_VERSION }, now);
+      return data ? [{ id: migratedTopLevelId(input.uid, document.id), data }] : [];
+    });
+    if (input.apply) {
+      for (let offset = 0; offset < eligible.length; offset += 400) {
+        const batch = firestore.batch();
+        for (const event of eligible.slice(offset, offset + 400)) {
+          // Replacement also removes unsafe fields left by a partial older run.
+          // Never store the raw legacy document ID/path or actor-supplied IDs.
+          batch.set(firestore.doc(`usageEvents/${event.id}`), event.data, { merge: false });
+        }
+        await batch.commit();
+      }
+    }
+    return eligible.length;
+  }
   if (input.apply && !snapshot.empty) {
     for (let offset = 0; offset < snapshot.docs.length; offset += 400) {
       const batch = firestore.batch();
@@ -45,19 +63,24 @@ async function copyCollection(input: {
   return snapshot.size;
 }
 
-export async function migrateUserTenantData(uid: string, apply = true) {
-  const firestore = getAdminFirestore();
+export async function migrateUserTenantData(uid: string, apply = true, dependencies = {
+  getFirestore: getAdminFirestore,
+  ensureTenant: ensurePersonalTenant,
+  now: () => Timestamp.now(),
+}) {
+  const firestore = dependencies.getFirestore();
+  const now = dependencies.now();
   const userRef = firestore.doc(`users/${uid}`);
   const user = await userRef.get();
   if (apply && Number(user.data()?.tenantDataMigrationVersion) >= MIGRATION_VERSION) {
     return { uid, applied: false, alreadyMigrated: true, savedPrompts: 0, projects: 0, sessions: 0, memoryEntries: 0, evaluations: 0, usageEvents: 0 };
   }
-  if (apply) await ensurePersonalTenant(uid);
+  if (apply) await dependencies.ensureTenant(uid);
   const tenantId = personalTenantId(uid);
   const workspaceId = personalWorkspaceId(uid);
-  const savedPrompts = await copyCollection({ sourcePath: `users/${uid}/savedPrompts`, targetPath: 'savedPrompts', tenantId, workspaceId, uid, apply, namespaceDocumentIds: true });
-  const evaluations = await copyCollection({ sourcePath: `users/${uid}/evaluationRuns`, targetPath: 'evaluations', tenantId, workspaceId, uid, apply, namespaceDocumentIds: true });
-  const usageEvents = await copyCollection({ sourcePath: `users/${uid}/usageEvents`, targetPath: 'usageEvents', tenantId, workspaceId, uid, apply, namespaceDocumentIds: true, extra: { legacy: true } });
+  const savedPrompts = await copyCollection({ sourcePath: `users/${uid}/savedPrompts`, targetPath: 'savedPrompts', tenantId, workspaceId, uid, apply, namespaceDocumentIds: true }, firestore, now);
+  const evaluations = await copyCollection({ sourcePath: `users/${uid}/evaluationRuns`, targetPath: 'evaluations', tenantId, workspaceId, uid, apply, namespaceDocumentIds: true }, firestore, now);
+  const usageEvents = await copyCollection({ sourcePath: `users/${uid}/usageEvents`, targetPath: 'usageEvents', tenantId, workspaceId, uid, apply, namespaceDocumentIds: true }, firestore, now);
   const legacyProjects = await firestore.collection(`users/${uid}/projects`).get();
   let sessions = 0;
   let memoryEntries = 0;
@@ -83,7 +106,7 @@ export async function migrateUserTenantData(uid: string, apply = true) {
       uid,
       apply,
       extra: { projectId: migratedProjectId, legacyProjectId: project.id },
-    });
+    }, firestore, now);
     memoryEntries += await copyCollection({
       sourcePath: `${project.ref.path}/memoryEntries`,
       targetPath: `projects/${migratedProjectId}/memoryEntries`,
@@ -92,7 +115,7 @@ export async function migrateUserTenantData(uid: string, apply = true) {
       uid,
       apply,
       extra: { projectId: migratedProjectId, legacyProjectId: project.id },
-    });
+    }, firestore, now);
   }
   if (apply) {
     await userRef.set({
