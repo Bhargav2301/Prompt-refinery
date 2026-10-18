@@ -16,7 +16,6 @@ export interface OwnerAnalyticsReport {
   breakdowns: { tasks: Array<{ label: string; requests: number }>; providers: Array<{ label: string; requests: number }> };
   coverage: {
     scanned: number; invalid: number; legacyExcluded: number; flaggedExcluded: number;
-    truncated: boolean; limit: number; minimumGroupTenants: number;
-    dailySuppressed: boolean; tasksSuppressed: boolean; providersSuppressed: boolean;
+    truncated: boolean; limit: number;
   };
 }

@@ -18,9 +18,13 @@ Status meanings: **Verified existing** means inspected code, not verified produc
 | PA-008a / 6 | Private owner operational dashboard for all Clarift profiles and existing request telemetry | Tested locally | Founder selected private owner dashboard. Full regression suite passed; [definitions and limits](10-metrics-and-dashboards.md); no optional behavioral instrumentation |
 | PA-008b / 6 | Optional behavioral metrics, activation/retention, complete internal-traffic exclusion | Blocked | PA-004, PA-005, PA-007; operational reporting is not consent evidence |
 | PA-009 / 7 | Full privacy QA: first visit/refusal/withdrawal, concurrency, isolation, retention, network and accessibility | Blocked | Implement relevant systems first; individual scoped tests do not satisfy full QA |
-| PA-010 / 8 | CI, staging, internal testing and reviewed beta rollout | Release authorized; validation in progress | D-016 supersedes prior local-only boundary; see release evidence |
+| PA-010 / 8 | CI, staging, internal testing and reviewed beta rollout | CI and production rollout verified; staging not separately exercised | PR #18 merged; build-2026-10-18-002 at 100% traffic; see release receipt |
+| PA-008c / 6, 7 | Optional technique/version statistics and separate source accounting | Tested locally and with five live developer-account requests | Exact redo/change metadata and source/day totals passed; original live test observed suppressed rows, subsequently superseded by PA-008d; see live evidence |
+| PA-008d / 6, 7, 8 | Show small-group counts in the private owner dashboard | Full verification and responsive rendering passed; CI/release pending | Explicit D-024 authorization; server/UI threshold removed; single-workspace aggregate visibility and content/identity exclusion tested |
 
 ## Latest approved slice
+
+PA-008d removes small-group suppression from the private owner report under D-024, with aggregate-only output and the existing owner authorization. All 157 regression tests and the production build passed; desktop/mobile rendering passed. GitHub CI and deployment outcomes are recorded in the release receipt after execution.
 
 PA-008c adds default-off technique/version statistics, explicit redo tracking, content-free parameter categories and source accounting. See [release contract](13-refinement-metrics-release.md). This does not complete the broader consent, rights, retention or legal program.
 

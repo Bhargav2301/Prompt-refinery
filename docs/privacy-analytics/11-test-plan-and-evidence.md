@@ -79,3 +79,36 @@ Still unrun: production build/CI/deployment, actual Firestore queries/indexes/ru
 
 - Real unpacked extension in an isolated bundled Chromium profile: **passed** service-worker startup, frame messaging, automatic history collection, context-pill draft and clipboard copy. The local fixture port was 9002; no personal browser profile was used.
 - Final typecheck/lint: **passed**; downloadable archive regenerated from extension source.
+
+## Live developer-account verification, 2026-10-18, 14:48–14:59 UTC
+
+The founder explicitly requested end-to-end tests of the deployed website and installed extension using their account. These used new synthetic book-swap prompts and real production inference (no mocks). The existing account was already signed in. The founder updated/reloaded extension 2.5.0 and enabled its optional statistics; the website checkbox was enabled for the test and restored to off afterward. Website technique/length/mode controls were restored to Zero-shot, no maximum, and Quick Refine.
+
+| Check | Executed result |
+| --- | --- |
+| Website initial, explicit edited redo, ordinary follow-up | 3 successful generative events; source app on all 3 |
+| Website redo changes | Exact array: prompt, technique, mode, maximumLength; depth 1; prior baseline known |
+| Website follow-up | kind follow_up, depth 0; changed prompt and mode; did not count as redo |
+| Installed extension, fresh HTTPS ChatGPT composer | Real inline refinement replaced the draft; no prompt was submitted to ChatGPT |
+| Extension initial and same-editor redo | 2 successful generative events; source extension on both; redo depth 1; unchanged settings produced an empty change list |
+| Combined optional metadata | 2 initial, 2 redos, 1 follow-up; 3 comparable versions; maximum redo depth 1 |
+| Separate persisted source/day totals | app requestCount=3, successCount=3; extension requestCount=2, successCount=2; zero failures; totals exactly matched these events |
+| Charges | creditsCharged=0 on all five events; request entitlement/quota use is separate from credit charges |
+| Owner dashboard | Baseline directly observed: 74 requests. Founder pasted refreshed UI at 14:58:45 UTC: 79 requests, all successful, 70 with cost/token coverage |
+| Small-group privacy behavior | Founder-confirmed UI hides source breakdowns until each source has five workspaces and hides optional statistics until five workspaces contribute. This test does not establish that detailed rows are visible for a single account |
+
+The read-only verifier used the existing Firebase CLI project credential and selected only the developer account's projected metadata since the test start. No other users' event details, private chats, prompts, outputs, authentication tokens or credentials were read by that verifier. Assertions passed for all five event classifications, exact change lists, depths, known baselines, zero credit charges and agreement with source/day aggregates. A first verifier attempt used an incorrectly serialized field mask and failed before producing evidence; the corrected scoped read passed. Raw request IDs remain only in local scratch evidence, not this document.
+
+Browser security policy blocked direct extension Settings access; the founder performed that setup. It subsequently blocked reopening the owner Analytics tab, so the final dashboard figures are explicitly founder-reported, not a fresh agent observation. No alternative browser route or token extraction was used. The independent account-scoped datastore verification had already been prepared before that navigation denial and did not query the owner dashboard or other accounts.
+
+Artifacts (local only): [projected records](../../tmp/live-account-analytics-evidence.json), [inline result screenshot](../../tmp/live-account-e2e/extension-initial.png). The extension technique-change scenario was not performed: its settings stayed Zero-shot/Quick Refine, so its empty redo change list is the expected result. Website changes were exercised with actual different settings. These tests do not establish semantic technique-classifier accuracy, hidden dashboard row rendering, or every provider/browser combination. No code, deployment, pricing, retention policy or small-group threshold changed during this test. The saved synthetic Clarift chat remains as reviewable test evidence.
+
+## Private owner threshold removal, 2026-10-18
+
+The founder explicitly approved removing the five-workspace threshold and deploying the change. The preceding live-test suppression observations remain historical evidence; they are not the new reporting contract.
+
+- Targeted owner/refinement tests: **19/19 passed**. Single-workspace fixtures expose website/extension counts, redo depth/counts, follow-up separation, parameter names and technique groups. Injected private prompt/output/email/identity fields are absent from the serialized API response and rendered HTML.
+- Active owner, disabled/suspended/deleted owner, non-owner roles, missing authentication, invalid periods, no-store headers, read bounds and fixed-error behavior remain covered. Optional consent and the collection kill switch still gate observations.
+- Full `npm.cmd run verify`: **passed**, exit 0 — lint, typecheck, **157/157 regression tests** (zero failed/skipped), extension packaging, SDK/CLI builds and Next.js production build. The extension archive has no tracked change; version 2.5.0 is retained. Windows intentionally skips packaged MarkItDown installation; the Linux release pipeline performs it.
+- Real owner report component with one synthetic workspace rendered at **1000×1100 and 390×844**: passed source counts (website 3, extension 2), visible change groups, no suppression messages, no identity text and no document overflow. Both screenshots were visually inspected. This is a local component fixture, not a fresh authenticated production UI observation.
+- GitHub CI and deployment remain pending at this commit; the pull request/release receipt will record their executed outcomes.

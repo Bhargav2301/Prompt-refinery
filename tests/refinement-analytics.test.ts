@@ -48,7 +48,7 @@ test('observation schema strips unknown payloads and rejects arbitrary categorie
 });
 
 test('report separates channels, successful redo counts, baselines and generative assessments', () => {
-  const report = refinementAnalyticsAccumulator(5);
+  const report = refinementAnalyticsAccumulator();
   for (let i = 0; i < 5; i++) for (const source of ['app', 'extension', 'api']) report.add({ tenantId: `tenant${i}`, source, status: 'succeeded', creditsCharged: source === 'app' ? 2 : 1, inputTokens: 100, outputTokens: 20, providerCostUsd: .01, qualityTier: source === 'api' ? 'fallback' : 'generative', refinement: observeRefinement({ consent: true, requested: 'Role / persona', revision: { kind: source === 'extension' ? 'redo' : source === 'app' ? 'follow_up' : 'initial', depth: source === 'extension' ? 2 : 0, baselineKnown: true, changedParameters: ['mode'] } }, { refinedPrompt: 'Act as an editor.' }, true) });
   const output = report.finish();
   assert.equal(output.channels.length, 3); assert.equal(output.channels.find(row => row.source === 'app')?.credits, 10);
@@ -59,9 +59,12 @@ test('report separates channels, successful redo counts, baselines and generativ
   assert.ok(!JSON.stringify(output).includes('tenant0'));
 });
 
-test('small groups are suppressed and missing consent does not become a failed quality assessment', () => {
-  const report = refinementAnalyticsAccumulator(5);
+test('one opted-in workspace is visible and missing consent is not a failed quality assessment', () => {
+  const report = refinementAnalyticsAccumulator();
   for (let i = 0; i < 5; i++) report.add({ tenantId: `tenant${i}`, source: 'app', status: 'succeeded', creditsCharged: 1, inputTokens: null, outputTokens: null, providerCostUsd: null, qualityTier: 'generative', refinement: i === 0 ? observeRefinement({ consent: true, requested: 'Zero-shot' }, { refinedPrompt: 'Hello.' }, true) : null });
   const output = report.finish();
-  assert.equal(output.channelsSuppressed, false); assert.equal(output.optional.suppressed, true); assert.equal(output.optional.samples, 0); assert.deepEqual(output.optional.matches, []);
+  assert.equal(output.channels[0].requests, 5); assert.equal(output.optional.samples, 1);
+  assert.deepEqual(output.optional.matches, [{ label: 'uncertain', requests: 1 }]);
+  assert.deepEqual(output.optional.techniques, [{ label: 'Zero-shot → Uncertain', requests: 1 }]);
+  assert.ok(!JSON.stringify(output).includes('tenant0'));
 });

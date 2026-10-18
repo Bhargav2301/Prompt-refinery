@@ -54,15 +54,15 @@ test('legacy, invalid, future and explicitly marked nonproduction events are exc
   assert.equal(result.coverage.flaggedExcluded, 3);
 });
 
-test('small-group suppression hides the whole dimension, including complementary subtotals', () => {
+test('private owner sees every aggregate even when a group contains only one workspace', () => {
   const events = Array.from({ length: 5 }, (_, index) => event(index));
   const result = report([...events, { ...event(6), task: 'evaluate', provider: 'openrouter', createdAt: Timestamp.fromDate(new Date('2026-10-16T12:00:00Z')) }]);
   assert.equal(result.totals.requests, 6);
-  assert.equal(result.coverage.tasksSuppressed, true);
-  assert.equal(result.coverage.providersSuppressed, true);
-  assert.equal(result.coverage.dailySuppressed, true);
-  assert.deepEqual(result.breakdowns, { tasks: [], providers: [] });
-  assert.deepEqual(result.daily, []);
+  assert.deepEqual(result.breakdowns.tasks, [{ label: 'quick_refine', requests: 5 }, { label: 'evaluate', requests: 1 }]);
+  assert.deepEqual(result.breakdowns.providers, [{ label: 'gemma', requests: 5 }, { label: 'openrouter', requests: 1 }]);
+  assert.equal(result.daily.length, 7);
+  assert.equal(result.daily.find(day => day.day === '2026-10-16')?.requests, 1);
+  assert.equal(result.totals.reportingTenants, 6);
 });
 
 test('empty and missing numeric data remain explicit, not invented successes or zero-cost coverage', () => {
@@ -180,7 +180,7 @@ test('wired GET route rejects an unauthenticated request', async () => {
   assert.equal((await GET(request())).status, 401);
 });
 
-test('dashboard renders truthful coverage, accessible table labels, empty and suppression states', () => {
+test('dashboard renders truthful coverage, accessible tables and single-workspace counts', () => {
   const complete = report(Array.from({ length: 5 }, (_, index) => event(index)));
   const html = renderToStaticMarkup(React.createElement(OwnerAnalyticsView, { report: complete }));
   assert.match(html, /Clarift accounts|Recorded requests/);
@@ -188,9 +188,47 @@ test('dashboard renders truthful coverage, accessible table labels, empty and su
   assert.match(html, /cost reported on 5 of 5/);
   assert.match(html, /do not measure adoption, retention/);
   assert.ok(!html.includes(secret));
-  const suppressed = renderToStaticMarkup(React.createElement(OwnerAnalyticsView, { report: report([event()]) }));
-  assert.match(suppressed, /Hidden until every group includes at least 5/);
-  assert.doesNotMatch(suppressed, /<table/);
+  const single = renderToStaticMarkup(React.createElement(OwnerAnalyticsView, { report: report([event()]) }));
+  assert.match(single, /Website/);
+  assert.match(single, /<table/);
+  assert.doesNotMatch(single, /hidden until|at least 5|personal_synthetic/i);
   assert.match(renderToStaticMarkup(React.createElement(OwnerAnalyticsView, { report: report() })), /No eligible usage records/);
   assert.match(renderToStaticMarkup(React.createElement(OwnerAnalyticsView, { report: { ...complete, coverage: { ...complete.coverage, truncated: true } } })), /Partial usage totals/);
+});
+
+function singleWorkspaceVersions() {
+  const revisions = [
+    { source: 'app', kind: 'initial', changedParameters: [] },
+    { source: 'app', kind: 'redo', changedParameters: ['prompt', 'technique', 'mode', 'maximumLength'] },
+    { source: 'app', kind: 'follow_up', changedParameters: ['prompt', 'mode'] },
+    { source: 'extension', kind: 'initial', changedParameters: [] },
+    { source: 'extension', kind: 'redo', changedParameters: [] },
+  ];
+  return revisions.map(revision => ({ ...event(), source: revision.source,
+    prompt: secret, output: secret, email: secret, principalId: secret,
+    refinement: { consentVersion: 1, requested: 'Role / persona', detected: ['Role / persona'], match: 'matched', method: 'structural-signals-v1',
+      output: secret, revision: { kind: revision.kind, depth: revision.kind === 'redo' ? 1 : 0, baselineKnown: revision.kind !== 'initial', changedParameters: revision.changedParameters, previousPrompt: secret } },
+  }));
+}
+
+test('single-workspace API exposes source, redo and change counts while excluding content and identities', async () => {
+  const fixture = requestFixture();
+  const response = await handleOwnerAnalytics(request(), { ...fixture.dependencies, read: async () => report(singleWorkspaceVersions()) });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('Cache-Control'), 'private, no-store');
+  const result = await response.json();
+  assert.deepEqual(result.refinementAnalytics.channels.map((row: { source: string; requests: number }) => [row.source, row.requests]), [['app', 3], ['extension', 2]]);
+  const optional = result.refinementAnalytics.optional;
+  assert.equal(optional.samples, 5); assert.equal(optional.redos, 2); assert.equal(optional.initial, 2);
+  assert.equal(optional.followUps, 1); assert.equal(optional.maxRedoDepth, 1); assert.equal(optional.knownBaselines, 3);
+  assert.deepEqual(Object.fromEntries(optional.changes.map((row: { label: string; requests: number }) => [row.label, row.requests])), { mode: 2, prompt: 2, maximumLength: 1, technique: 1 });
+  assert.deepEqual(optional.matches, [{ label: 'matched', requests: 5 }]);
+  assert.deepEqual(optional.techniques, [{ label: 'Role / persona → Role / persona', requests: 5 }]);
+  const serialized = JSON.stringify(result);
+  assert.ok(!serialized.includes(secret)); assert.ok(!serialized.includes('personal_synthetic'));
+  assert.doesNotMatch(serialized, /"(?:tenantId|principalId|requestId|email|prompt|output|previousPrompt|attachments)"\s*:/);
+  const html = renderToStaticMarkup(React.createElement(OwnerAnalyticsView, { report: result }));
+  assert.match(html, /Website/); assert.match(html, /Extension/); assert.match(html, /Redo refinements/);
+  assert.match(html, /maximumLength/); assert.doesNotMatch(html, /hidden until|at least 5/i);
+  assert.ok(!html.includes(secret)); assert.ok(!html.includes('personal_synthetic'));
 });

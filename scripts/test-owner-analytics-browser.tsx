@@ -20,17 +20,17 @@ async function main() {
   const output = resolve('tmp/owner-analytics-preview');
   await mkdir(output, { recursive: true });
   const now = new Date('2026-10-18T12:00:00Z');
-  const events = Array.from({ length: 70 }, (_, index) => ({
-    tenantId: `personal_synthetic-${index % 10}`, task: index < 35 ? 'quick_refine' : 'evaluate',
-    provider: index < 35 ? 'gemma' : 'openrouter', status: index % 9 === 0 ? 'failed' : 'succeeded',
-    source: index < 35 ? 'app' : 'extension', qualityTier: 'generative',
+  const events = Array.from({ length: 5 }, (_, index) => ({
+    tenantId: 'personal_synthetic-only-workspace', task: index < 3 ? 'quick_refine' : 'evaluate',
+    provider: index < 3 ? 'gemma' : 'openrouter', status: 'succeeded',
+    source: index < 3 ? 'app' : 'extension', qualityTier: 'generative',
     refinement: observeRefinement({ consent: true, requested: 'Role / persona', revision: { kind: 'redo', depth: 2, baselineKnown: true, changedParameters: ['mode', 'technique'] } }, { refinedPrompt: 'Act as an editor. Compare alternative approaches.' }, true),
     creditsCharged: 3, inputTokens: 300, outputTokens: 140, providerCostUsd: 0.001, latencyMs: 120 + index * 70,
     createdAt: Timestamp.fromDate(new Date(`2026-10-${12 + Math.floor(index / 10)}T10:00:00Z`)),
   }));
   const report = aggregateOwnerAnalytics({ events, totalProfiles: 42, newProfiles: 8, days: 7, now, truncated: false });
   const css = await postcss([tailwindcss(tailwindConfig)]).process(await readFile(resolve('src/app/globals.css'), 'utf8'), { from: resolve('src/app/globals.css') });
-  const html = `<!doctype html><html lang="en" class="dark"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Clarift owner analytics — synthetic preview</title><style>${css.css}</style><body class="bg-background text-foreground"><main class="mx-auto max-w-3xl p-4"><h1 class="mb-2 text-xl font-semibold">Owner analytics</h1><p class="mb-4 text-sm text-muted-foreground">Synthetic review fixture · no live user data</p>${renderToStaticMarkup(<OwnerAnalyticsView report={report} />)}</main></body></html>`;
+  const html = `<!doctype html><html lang="en" class="dark"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Clarift owner analytics — synthetic preview</title><style>${css.css}</style><body class="bg-background text-foreground"><main class="mx-auto max-w-3xl p-4"><h1 class="mb-2 text-xl font-semibold">Owner analytics</h1><p class="mb-4 text-sm text-muted-foreground">Single-workspace synthetic fixture · no live user data</p>${renderToStaticMarkup(<OwnerAnalyticsView report={report} />)}</main></body></html>`;
   await writeFile(resolve(output, 'index.html'), html);
   const browser = await chromium.launch({ headless: true, ...(process.env.CLARIFT_CHROMIUM_EXECUTABLE ? { executablePath: process.env.CLARIFT_CHROMIUM_EXECUTABLE } : {}) });
   try {
@@ -41,6 +41,12 @@ async function main() {
       await page.setContent(html);
       assert.equal(await page.getByRole('table').count(), 2);
       assert.ok(await page.getByText('Clarift accounts', { exact: true }).isVisible());
+      const sources = page.getByRole('table', { name: 'Usage and charged credits by source' });
+      assert.match(await sources.getByRole('row', { name: /^Website / }).innerText(), /Website\s+3/);
+      assert.match(await sources.getByRole('row', { name: /^Extension / }).innerText(), /Extension\s+2/);
+      assert.equal(await page.getByText(/hidden until|at least 5/i).count(), 0);
+      assert.equal(await page.getByRole('region', { name: 'Changed parameters across versions', exact: true }).getByRole('listitem').count(), 2);
+      assert.equal(await page.getByText(/personal_synthetic-only-workspace/).count(), 0);
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), `${name} overflows horizontally`);
       await page.screenshot({ path: resolve(output, `${name}.png`), fullPage: true });
       await page.close();

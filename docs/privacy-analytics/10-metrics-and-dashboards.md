@@ -1,6 +1,6 @@
 # Private owner operational dashboard — PA-008a
 
-Implemented locally 2026-10-18 following the founder's explicit selection of a private owner dashboard. Location: **Settings → Admin → Analytics**. API: `GET /api/admin/analytics?days=7|30|90` (default 30). No deployment or external configuration changes have occurred.
+First implemented 2026-10-18 following the founder's explicit selection of a private owner dashboard and deployed in PR #18. Location: **Settings → Administration → Analytics**. API: `GET /api/admin/analytics?days=7|30|90` (default 30). The founder subsequently authorized removal of the five-workspace threshold for this private view (D-024); deployment evidence is recorded separately.
 
 ## Sources and access
 
@@ -26,7 +26,7 @@ Implemented locally 2026-10-18 following the founder's explicit selection of a p
 | Latency median/p95 | Nearest-rank percentiles of recorded nonnegative milliseconds. Includes successful and failed requests; not browser-perceived time. |
 | Daily/task/provider views | Counts in UTC/allowlisted categories. Unrecognized providers map to `unknown`; arbitrary diagnostic strings are not labels. |
 
-All windows start at UTC midnight `days−1` days before today and end at the query time (exclusive). Today is partial. Daily series includes zero-request days when not suppressed. The app displays the actual period/update time, missing-cost coverage and excluded record counts.
+All windows start at UTC midnight `days−1` days before today and end at the query time (exclusive). Today is partial. Daily series includes zero-request days. The app displays the actual period/update time, missing-cost coverage and excluded record counts.
 
 ## Coverage and privacy limits
 
@@ -34,7 +34,7 @@ Legacy records, invalid/out-of-window records, and events explicitly marked `isI
 
 At more than 10,000 matching documents, totals/percentiles/groups describe the latest eligible subset only; the UI shows a partial-data notice. Account counts are separate aggregate queries and not subject to this row cap. Each refresh uses new queries, not a static list of users.
 
-Daily, task and provider dimensions are each withheld entirely if any nonempty group contains fewer than five distinct tenants. This avoids exposing one small residual group by subtraction within the same dimension. Overall totals remain restricted to the owner. Multiple overlapping queries and external knowledge can still reveal information; this is not an anonymous public dashboard. No row-level identities or drilldown/export added.
+The private owner view shows aggregate daily, task, provider, source, technique, redo and parameter-change counts even when only one workspace contributes. D-024 supersedes the earlier five-workspace suppression policy. The response still excludes prompt/output content, attachments, emails and user/workspace/request identifiers; only the overall number of represented workspaces is exposed. Active-owner authorization, bounded reads, validation, private/no-store responses and fixed audit metadata remain enforced. Small aggregates may be identifiable through external knowledge, so this is not an anonymous or public dashboard. No per-user drilldown or export is added.
 
 Optional adoption, activation, retention, feedback and content-research metrics remain blocked on purpose/consent design. Operational data must not be presented as consenting-user behavior or proof of downstream value.
 
