@@ -43,3 +43,17 @@ No founder question blocks the approved local work. The owner has approved the o
 | D-021 | Transactional telemetry deduplication and failure isolation | Retries do not inflate aggregate usage; telemetry outages do not fail settled work |
 
 See [release contract and limitations](13-refinement-metrics-release.md). Earlier decisions/evidence describe their historical scope, not the current deployment authorization.
+
+## 2026-10-18 live verification
+
+| Decision | Evidence / choice | Consequence |
+| --- | --- | --- |
+| D-022 | Founder explicitly requests live website and installed-extension tests using their account | Five synthetic production refinements authorized; opted-in metadata inspected only for this account; no mocks or new deployment |
+| D-023 | Preserve the existing five-workspace reporting threshold during a one-account test | Verify exact source/redo/change records with a scoped read-only datastore query. Founder confirms the final dashboard total of 79 and its suppressed detailed rows; no fake workspaces or privacy-rule relaxation |
+
+## 2026-10-18 private-owner threshold removal
+
+| Decision | Evidence / choice | Consequence |
+| --- | --- | --- |
+| D-024 | Founder explicitly requests removing the five-workspace threshold from their private owner dashboard, retaining hidden prompts/identities, testing, GitHub push and deployment | Supersedes D-015 and the threshold-preservation choice in D-023 for this private report. Show daily/task/provider/source and opted-in technique/version/change aggregates for one or more contributing workspaces. No public or per-user view is introduced. |
+| D-025 | Remove suppression in both server aggregation and rendering; stop retaining per-category participant sets | Keep the overall distinct-workspace count only. Existing active-owner checks, runtime field projection, opt-in collection, query bounds, private/no-store responses and audit metadata stay enforced. Small aggregates are not anonymous. |

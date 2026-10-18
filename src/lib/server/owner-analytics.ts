@@ -6,7 +6,6 @@ import { getAdminFirestore } from './firebase-admin';
 import { TenantUsageSchema } from './usage-telemetry-schema';
 
 export const OWNER_ANALYTICS_EVENT_LIMIT = 10_000;
-const MINIMUM_GROUP_TENANTS = 5;
 // Select only what aggregation needs, including for old/contaminated documents.
 export const OWNER_ANALYTICS_FIELDS = [
   'source', 'qualityTier', 'refinement',
@@ -30,13 +29,13 @@ export function aggregateOwnerAnalytics(input: {
 }): OwnerAnalyticsReport {
   const { from, to } = ownerAnalyticsPeriod(input.days, input.now);
   const totals: OwnerAnalyticsReport['totals'] = { requests: 0, succeeded: 0, failed: 0, successRate: null, reportingTenants: 0, creditsCharged: 0, inputTokens: 0, outputTokens: 0, providerCostUsd: 0, costKnownRequests: 0, tokenKnownRequests: 0 };
-  const refinementAnalytics = refinementAnalyticsAccumulator(MINIMUM_GROUP_TENANTS);
+  const refinementAnalytics = refinementAnalyticsAccumulator();
   const tenants = new Set<string>();
   const latencies: number[] = [];
-  const daily = new Map<string, { day: string; requests: number; succeeded: number; failed: number; tenants: Set<string> }>();
-  const tasks = new Map<string, { requests: number; tenants: Set<string> }>();
-  const providers = new Map<string, { requests: number; tenants: Set<string> }>();
-  const coverage: OwnerAnalyticsReport['coverage'] = { scanned: input.events.length, invalid: 0, legacyExcluded: 0, flaggedExcluded: 0, truncated: input.truncated, limit: OWNER_ANALYTICS_EVENT_LIMIT, minimumGroupTenants: MINIMUM_GROUP_TENANTS, dailySuppressed: false, tasksSuppressed: false, providersSuppressed: false };
+  const daily = new Map<string, { day: string; requests: number; succeeded: number; failed: number }>();
+  const tasks = new Map<string, { requests: number }>();
+  const providers = new Map<string, { requests: number }>();
+  const coverage: OwnerAnalyticsReport['coverage'] = { scanned: input.events.length, invalid: 0, legacyExcluded: 0, flaggedExcluded: 0, truncated: input.truncated, limit: OWNER_ANALYTICS_EVENT_LIMIT };
 
   for (const raw of input.events) {
     if (raw && typeof raw === 'object') {
@@ -59,15 +58,13 @@ export function aggregateOwnerAnalytics(input: {
     tenants.add(event.tenantId);
     latencies.push(event.latencyMs);
     const day = event.createdAt.toDate().toISOString().slice(0, 10);
-    const bucket = daily.get(day) ?? { day, requests: 0, succeeded: 0, failed: 0, tenants: new Set<string>() };
+    const bucket = daily.get(day) ?? { day, requests: 0, succeeded: 0, failed: 0 };
     bucket.requests++;
     bucket[event.status === 'succeeded' ? 'succeeded' : 'failed']++;
-    bucket.tenants.add(event.tenantId);
     daily.set(day, bucket);
     for (const [groups, label] of [[tasks, event.task], [providers, event.provider ?? 'unknown']] as const) {
-      const group = groups.get(label) ?? { requests: 0, tenants: new Set<string>() };
+      const group = groups.get(label) ?? { requests: 0 };
       group.requests++;
-      group.tenants.add(event.tenantId);
       groups.set(label, group);
     }
   }
@@ -76,24 +73,19 @@ export function aggregateOwnerAnalytics(input: {
   totals.providerCostUsd = Math.round(totals.providerCostUsd * 1_000_000) / 1_000_000;
   latencies.sort((a, b) => a - b);
   const percentile = (fraction: number) => latencies.length ? latencies[Math.ceil(latencies.length * fraction) - 1] : null;
-  // Hide the entire dimension when any group is small, so visible subtotals do
-  // not reveal a single suppressed group through subtraction from the total.
-  const small = (groups: Iterable<{ tenants: Set<string> }>) => Array.from(groups).some((group) => group.tenants.size < MINIMUM_GROUP_TENANTS);
-  coverage.dailySuppressed = small(daily.values());
-  coverage.tasksSuppressed = small(tasks.values());
-  coverage.providersSuppressed = small(providers.values());
+  // This authenticated owner report exposes aggregate counts, including small groups.
   const rows = (groups: typeof tasks) => Array.from(groups, ([label, value]) => ({ label, requests: value.requests })).sort((a, b) => b.requests - a.requests || a.label.localeCompare(b.label));
   return {
     refinementAnalytics: refinementAnalytics.finish(),
     generatedAt: to.toISOString(), period: { from: from.toISOString(), to: to.toISOString(), days: input.days, timezone: 'UTC' },
     accounts: { totalProfiles: input.totalProfiles, newProfiles: input.newProfiles }, totals,
     latencyMs: { p50: percentile(0.5), p95: percentile(0.95) },
-    daily: coverage.dailySuppressed ? [] : Array.from({ length: input.days }, (_, offset) => {
+    daily: Array.from({ length: input.days }, (_, offset) => {
       const day = new Date(from.getTime() + offset * 86400000).toISOString().slice(0, 10);
       const bucket = daily.get(day);
       return { day, requests: bucket?.requests ?? 0, succeeded: bucket?.succeeded ?? 0, failed: bucket?.failed ?? 0 };
     }),
-    breakdowns: { tasks: coverage.tasksSuppressed ? [] : rows(tasks), providers: coverage.providersSuppressed ? [] : rows(providers) }, coverage,
+    breakdowns: { tasks: rows(tasks), providers: rows(providers) }, coverage,
   };
 }
 
