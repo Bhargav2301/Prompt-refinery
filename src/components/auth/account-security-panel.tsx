@@ -2,12 +2,13 @@
 
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { EmailAuthProvider, reauthenticateWithCredential, reload, sendEmailVerification, updatePassword } from 'firebase/auth';
+import { EmailAuthProvider, reauthenticateWithCredential, reload, updatePassword } from 'firebase/auth';
+import { requestVerificationEmail } from '@/lib/account-email-client';
 import { useFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { accountErrorMessage, emailActionSettings, passwordPairSchema } from '@/lib/account-security';
+import { accountErrorMessage, passwordPairSchema } from '@/lib/account-security';
 
 export function AccountSecurityPanel() {
   const { user } = useFirebase();
@@ -41,7 +42,7 @@ export function AccountSecurityPanel() {
     setPending(true); setError(''); setMessage('');
     try {
       if (check) { await reload(user); await user.getIdToken(true); setVerified(user.emailVerified); setMessage(user.emailVerified ? 'Your email is verified.' : 'Open the verification link in your inbox first.'); }
-      else { await sendEmailVerification(user, emailActionSettings(window.location.origin)); setMessage('Verification email sent. Open the latest link in your inbox.'); }
+      else { await requestVerificationEmail(user); setMessage('Verification email sent. Open the latest link in your inbox.'); }
     } catch (error) { setError(accountErrorMessage(error)); }
     finally { setPending(false); }
   }
