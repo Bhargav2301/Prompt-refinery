@@ -27,6 +27,7 @@ async function initialize() {
   const [persistent, session] = await Promise.all([
     chrome.storage.local.get({ refreshToken: '' }), chrome.storage.session.get({ accessToken: '' })
   ]);
+  settingsButton.textContent = session.accessToken || persistent.refreshToken ? 'Extension settings' : 'Connect Clarift account';
   configurationStatus.textContent = session.accessToken || persistent.refreshToken ? 'Ready to refine prompts' : 'Connect your Clarift account';
   document.querySelector('#extension-version').textContent = `v${chrome.runtime.getManifest().version}`;
   const tab = await activeTab();

@@ -9,4 +9,8 @@ The next analytics stage requires server-side, tenant-scoped aggregation for:
 - recent content-free activity events;
 - cost and latency trends by task quality tier.
 
-This work must preserve the existing 90-day content-free event retention policy, avoid storing prompt or response content, and add tenant-isolation and aggregate-reconciliation tests before the new metrics are exposed.
+The root usage writer sets an expiry timestamp 90 days after creation; actual TTL deletion has not been verified, and the legacy per-user writer has no expiry field. Do not treat those timestamps as an enforced retention policy. Any new metrics require purpose/consent review, content exclusion, tenant-isolation and aggregate-reconciliation tests before exposure.
+
+The 2026-10-18 local audit and approved writer-hardening slice are tracked in [the privacy analytics checklist](privacy-analytics/implementation-checklist.md). It does not enable new tracking, establish consent enforcement, sanitize historical events or verify production retention.
+
+The founder subsequently approved a private owner operational dashboard in Settings → Admin → Analytics. Its [metric definitions and limits](privacy-analytics/10-metrics-and-dashboards.md) cover all current/future Clarift profiles and recorded operational usage, with bounded queries and small-group suppression. This is locally implemented and tested; optional product adoption/retention analytics remain separate pending work.

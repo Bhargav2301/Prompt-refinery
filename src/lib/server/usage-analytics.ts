@@ -3,6 +3,7 @@ import { Timestamp } from 'firebase-admin/firestore';
 import { getAdminFirestore } from './firebase-admin';
 import { assertActiveAccount, requireUser } from './user-access';
 import { getEffectiveUserEntitlement, verifyFirebaseIdToken } from './user-access';
+import { UsageSubjectIdSchema, UserUsageSchema } from './usage-telemetry-schema';
 
 export type UsageEventKind = 'refinement' | 'evaluation' | 'conversion' | 'model_test' | 'api_request';
 
@@ -16,30 +17,26 @@ interface UsageEventInput {
   success?: boolean;
 }
 
-function safeString(value: string | undefined, max = 80) {
-  return value?.trim().slice(0, max) || null;
-}
-
-export async function recordUsageEvent(uid: string, input: UsageEventInput) {
-  await getAdminFirestore().collection(`users/${uid}/usageEvents`).add({
-    kind: input.kind,
-    technique: safeString(input.technique),
-    score: typeof input.score === 'number' && Number.isFinite(input.score) ? Math.max(0, Math.min(100, input.score)) : null,
-    itemCount: Math.max(1, Math.min(100, Math.floor(input.itemCount ?? 1))),
-    provider: safeString(input.provider),
-    source: input.source ?? 'app',
-    success: input.success ?? true,
+export async function recordUsageEvent(uid: string, input: UsageEventInput, getFirestore = getAdminFirestore) {
+  const subject = UsageSubjectIdSchema.safeParse(uid);
+  const parsed = UserUsageSchema.safeParse(input);
+  if (!subject.success || !parsed.success) return;
+  await getFirestore().collection(`users/${subject.data}/usageEvents`).add({
+    ...parsed.data,
     createdAt: Timestamp.now(),
   });
 }
 
-export async function recordUsageEventFromToken(firebaseIdToken: string | undefined, input: UsageEventInput) {
+export async function recordUsageEventFromToken(firebaseIdToken: string | undefined, input: UsageEventInput, dependencies: {
+  verifyToken: (token: string) => Promise<{ uid: string }>;
+  record: (uid: string, event: UsageEventInput) => Promise<void>;
+} = { verifyToken: verifyFirebaseIdToken, record: recordUsageEvent }) {
   if (!firebaseIdToken) return;
   try {
-    const decodedToken = await verifyFirebaseIdToken(firebaseIdToken);
-    await recordUsageEvent(decodedToken.uid, input);
-  } catch (error) {
-    console.warn('Usage event could not be recorded.', { name: error instanceof Error ? error.name : 'UnknownError' });
+    const decodedToken = await dependencies.verifyToken(firebaseIdToken);
+    await dependencies.record(decodedToken.uid, input);
+  } catch {
+    console.warn('Usage event could not be recorded.');
   }
 }
 

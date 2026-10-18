@@ -18,6 +18,7 @@ import {
   type ProviderName,
 } from './provider-key-service';
 import type { TenantContext } from './tenant-service';
+import { observeRefinement, type RefinementAnalyticsInput } from '@/lib/refinement-observation';
 import { recordTenantUsage } from './usage-meter';
 import { getAdminFirestore } from './firebase-admin';
 import { acquireProviderCircuit, recordProviderFailure, recordProviderSuccess } from './provider-circuit-breaker';
@@ -44,6 +45,7 @@ export interface GatewayTaskRequest {
   preferredProvider?: ProviderName;
   idempotencyKey: string;
   source: GatewaySource;
+  refinementAnalytics?: RefinementAnalyticsInput;
   allowProviderFallback?: boolean;
 }
 
@@ -84,7 +86,7 @@ async function claimIdempotency(request: GatewayTaskRequest, requestId: string) 
   await firestore.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     const data = snapshot.data();
-    if (snapshot.exists && (data?.tenantId !== request.context.tenantId || data?.task !== request.task)) {
+    if (snapshot.exists && (data?.tenantId !== request.context.tenantId || data?.task !== request.task || (data?.source && data.source !== request.source))) {
       throw new Error('An idempotency key cannot be reused for another tenant or task.');
     }
     if (data?.status === 'succeeded') {
@@ -190,6 +192,7 @@ export async function runGatewayTask<T>(
         principalId: request.context.principalId,
         task: request.task,
         idempotencyKey: request.idempotencyKey,
+        source: request.source,
         requestId,
       });
       if (reservation.status === 'settled') {
@@ -274,10 +277,12 @@ export async function runGatewayTask<T>(
       task: request.task,
       inferenceMode: mode,
       provider: completedProvider,
+      qualityTier: completedProvider === 'local' ? 'fallback' : 'generative',
       inputTokens: providerUsage.inputTokens,
       outputTokens: providerUsage.outputTokens,
       providerCostUsd: providerUsage.costUsd,
       creditsCharged,
+      refinement: observeRefinement(request.refinementAnalytics, result),
       status: 'succeeded',
       latencyMs: Date.now() - startedAt,
       source: request.source,
@@ -322,6 +327,7 @@ export async function executeRefinement(input: GatewayTaskRequest & {
       task: executionMode,
       idempotencyKey: input.idempotencyKey,
       source: input.source,
+      refinementAnalytics: input.refinementAnalytics,
       prepared: buildFreeRefinementRequest(executionMode, input.refinement),
       fallback: () => refinePromptLocally({ ...input.refinement, executionMode }),
     });

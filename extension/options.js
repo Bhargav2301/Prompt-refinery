@@ -1,4 +1,4 @@
-const defaults = { apiBase: 'https://clarift--clarift-e4f6f.us-east4.hosted.app', technique: 'Zero-shot', mode: 'quick_refine', refreshToken: '', deviceId: '' };
+const defaults = { apiBase: 'https://clarift.dpdns.org', technique: 'Zero-shot', mode: 'quick_refine', refreshToken: '', deviceId: '', analyticsConsent: false };
 const form = document.querySelector('#settings-form');
 const status = document.querySelector('#status');
 const accountStatus = document.querySelector('#account-status');
@@ -8,25 +8,27 @@ const signOutButton = document.querySelector('#sign-out');
 
 async function current() {
   const [persistent, session] = await Promise.all([chrome.storage.local.get(defaults), chrome.storage.session.get({ accessToken: '' })]);
-  return { ...persistent, ...session };
+  return { ...persistent, ...session, apiBase: defaults.apiBase };
 }
 function render(settings) {
+  form.elements.analyticsConsent.checked = settings.analyticsConsent === true;
   accountStatus.textContent = settings.refreshToken ? 'Connected to Clarift' : 'Not connected';
   connectButton.hidden = Boolean(settings.refreshToken);
   signOutButton.hidden = !settings.refreshToken;
 }
 
 current().then((settings) => {
-  form.elements.apiBase.value = settings.apiBase;
+  form.elements.analyticsConsent.checked = settings.analyticsConsent === true;
   form.elements.technique.value = settings.technique;
   form.elements.mode.value = settings.mode;
   render(settings);
 });
 
-form.addEventListener('submit', async (event) => {
+form.addEventListener('submit', event => event.preventDefault());
+form.addEventListener('change', async (event) => {
   event.preventDefault();
   const values = Object.fromEntries(new FormData(form).entries());
-  values.apiBase = String(values.apiBase).replace(/\/$/, '');
+  values.analyticsConsent = form.elements.analyticsConsent.checked;
   await chrome.storage.local.set(values);
   status.textContent = 'Settings saved.';
   setTimeout(() => { status.textContent = ''; }, 3000);
@@ -82,7 +84,7 @@ signOutButton.addEventListener('click', async () => {
   if (settings.accessToken) {
     await fetch(`${String(settings.apiBase).replace(/\/$/, '')}/api/extension/signout`, { method: 'POST', headers: { Authorization: `Bearer ${settings.accessToken}` } }).catch(() => undefined);
   }
-  await Promise.all([chrome.storage.session.remove('accessToken'), chrome.storage.local.remove(['refreshToken', 'deviceId'])]);
+  await Promise.all([chrome.storage.session.remove('accessToken'), chrome.storage.local.remove(['refreshToken', 'deviceId', 'analyticsConsent'])]);
   linkStatus.textContent = 'Extension signed out.';
   render(await current());
 });

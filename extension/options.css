@@ -12,3 +12,5 @@ input, select, button { min-height: 42px; border: 1px solid #52525b; border-radi
 input:focus, select:focus, button:focus { outline: 3px solid #ff7400; outline-offset: 2px; }
 button { margin-top: 14px; border-color: #ff7400; background: #ff7400; color: #18181b; font-weight: 700; cursor: pointer; }
 #status { min-height: 20px; text-align: center; font-size: 13px; }
+
+input[type="checkbox"] { min-height: 0; width: 16px; height: 16px; margin-right: 6px; accent-color: #ff7400; }

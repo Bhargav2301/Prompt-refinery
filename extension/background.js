@@ -1,4 +1,4 @@
-const DEFAULT_API_BASE = 'https://clarift--clarift-e4f6f.us-east4.hosted.app';
+const DEFAULT_API_BASE = 'https://clarift.dpdns.org';
 const REQUEST_TIMEOUT_MS = 45000;
 const frameDiscoveries = new Map();
 
@@ -7,9 +7,10 @@ async function settings() {
     apiBase: DEFAULT_API_BASE,
     refreshToken: '',
     technique: 'Zero-shot',
-    mode: 'quick_refine'
+    mode: 'quick_refine',
+    analyticsConsent: false
   }), chrome.storage.session.get({ accessToken: '' })]);
-  return { ...persistent, ...session };
+  return { ...persistent, ...session, apiBase: DEFAULT_API_BASE };
 }
 
 async function payload(response) {
@@ -27,7 +28,7 @@ async function refreshSession(current) {
   });
   const result = await payload(response);
   if (!response.ok || !result.accessToken || !result.refreshToken) {
-    await Promise.all([chrome.storage.session.remove('accessToken'), chrome.storage.local.remove(['refreshToken', 'deviceId'])]);
+    await Promise.all([chrome.storage.session.remove('accessToken'), chrome.storage.local.remove(['refreshToken', 'deviceId', 'analyticsConsent'])]);
     throw new Error(result?.error?.message || 'Reconnect the extension to your Clarift account.');
   }
   await Promise.all([
@@ -37,7 +38,7 @@ async function refreshSession(current) {
   return { ...current, ...result };
 }
 
-async function refine(current, prompt, context, retry = true) {
+async function refine(current, prompt, context, revision, retry = true) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
@@ -48,10 +49,10 @@ async function refine(current, prompt, context, retry = true) {
         'Content-Type': 'application/json',
         'Idempotency-Key': crypto.randomUUID()
       },
-      body: JSON.stringify({ prompt, technique: current.technique, mode: current.mode, ...(context ? { context } : {}) }),
+      body: JSON.stringify({ analyticsConsent: current.analyticsConsent === true, revision, prompt, technique: current.technique, mode: current.mode, ...(context ? { context } : {}) }),
       signal: controller.signal
     });
-    if (response.status === 401 && retry) return refine(await refreshSession(current), prompt, context, false);
+    if (response.status === 401 && retry) return refine(await refreshSession(current), prompt, context, revision, false);
     const result = await payload(response);
     if (!response.ok) {
       if (response.status === 402) throw new Error('Your Clarift workspace needs more managed credits.');
@@ -124,7 +125,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.context && (message.context.consent !== true || typeof message.context.text !== 'string' || message.context.text.length > 5600)) throw new Error('Review the context before using it with Clarift.');
     if (!current.accessToken && current.refreshToken) current = await refreshSession(current);
     if (!current.accessToken) throw new Error('Open Clarift extension settings and connect your account.');
-    const result = await refine(current, message.prompt, message.context);
+    const revision = message.previous ? {
+      kind: 'redo', depth: Math.min(100, Math.max(1, Number(message.previous.depth) + 1 || 1)), baselineKnown: true,
+      changedParameters: [...(message.previous.technique !== current.technique ? ['technique'] : []), ...(message.previous.mode !== current.mode ? ['mode'] : []), ...(message.context?.text !== message.previous.context ? ['context'] : [])]
+    } : { kind: 'initial', depth: 0, baselineKnown: false, changedParameters: [] };
+    const result = await refine(current, message.prompt, message.context, revision);
+    result.version = { technique: current.technique, mode: current.mode, depth: revision.depth };
     sendResponse({ ok: true, ...result });
   }).catch((error) => sendResponse({ ok: false, error: error.message || 'Clarift request failed.' }));
   return true;

@@ -215,6 +215,10 @@ env:
     value: "true"
     availability:
       - RUNTIME
+  - variable: ENABLE_REFINEMENT_ANALYTICS
+    value: "true"
+    availability:
+      - RUNTIME
   - variable: ENABLE_USAGE_ANALYTICS
     value: "true"
     availability:

@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import { CREATIVE_TOOLS } from './prompt-library';
+import { refinementParametersSchema } from './refinement-parameters';
+import { revisionObservationSchema } from './refinement-observation';
 import { PROMPT_TECHNIQUES, type PromptTechnique } from './constants';
 
 export const chatTechniqueSchema = z.enum(PROMPT_TECHNIQUES.map(item => item.value) as [PromptTechnique, ...PromptTechnique[]]);
@@ -21,6 +23,9 @@ export const chatTurnSchema = z.object({
   mode: z.enum(['quick_refine', 'guided_fix', 'full_council']), tool: z.enum(CREATIVE_TOOLS),
   qualityTier: z.string().max(30).optional(), references: z.array(z.string().max(200)).max(30),
   promptType: chatTechniqueSchema.optional(),
+  parameters: refinementParametersSchema.optional(),
+  revisionInfo: revisionObservationSchema.optional(),
+  parentTurnId: z.string().uuid().optional(),
   refinements: z.array(z.object({ councilMember: z.string().max(160), thoughtProcess: z.string().max(4000), refinedText: z.string().max(100_000) })).max(5).optional(),
 });
 export type ChatTurn = z.infer<typeof chatTurnSchema>;

@@ -41,6 +41,7 @@ import {
   type OpenModelProviderConfig,
 } from './open-model-provider-config';
 import type { TenantContext } from './tenant-service';
+import { observeRefinement, type RefinementAnalyticsInput } from '@/lib/refinement-observation';
 import { recordTenantUsage } from './usage-meter';
 import { getEffectiveUserRole } from './user-access';
 
@@ -51,6 +52,7 @@ interface FreeGatewayRequest<T> {
   task: FreeInferenceTask;
   idempotencyKey: string;
   source: FreeGatewaySource;
+  refinementAnalytics?: RefinementAnalyticsInput;
   prepared: {
     messages: ModelMessage[];
     schema: { name: string; schema: Record<string, unknown> };
@@ -145,7 +147,7 @@ async function claimIdempotency<T>(request: FreeGatewayRequest<T>, requestId: st
   await firestore.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     const data = snapshot.data();
-    if (snapshot.exists && (data?.tenantId !== request.context.tenantId || data?.task !== request.task)) {
+    if (snapshot.exists && (data?.tenantId !== request.context.tenantId || data?.task !== request.task || (data?.source && data.source !== request.source))) {
       throw new Error('An idempotency key cannot be reused for another tenant or task.');
     }
     if (data?.status === 'succeeded') {
@@ -221,6 +223,7 @@ export async function executeFreeGatewayTask<T>(request: FreeGatewayRequest<T>):
       outputTokens: totalOutputTokens || null,
       providerCostUsd: totalCost || null,
       creditsCharged: 0,
+      refinement: observeRefinement(request.refinementAnalytics, result),
       status: 'succeeded',
       latencyMs: Date.now() - startedAt,
       source: request.source,
@@ -235,7 +238,7 @@ export async function executeFreeGatewayTask<T>(request: FreeGatewayRequest<T>):
     const serializedTokens = estimateSerializedTokens({ messages: request.prepared.messages, schema: request.prepared.schema.schema });
     if (serializedTokens > request.prepared.inputTokenLimit) return await finishFallback(chooseBasicModeStatus({ requestTooLarge: true }));
 
-    quotaReservation = await reserveFreeQuota({ context: request.context, task: request.task, requestId, allowancePlan });
+    quotaReservation = await reserveFreeQuota({ context: request.context, task: request.task, requestId, source: request.source, allowancePlan });
     if (quotaReservation.status === 'unavailable') return await finishFallback(quotaFallbackStatus(quotaReservation));
 
     try {
@@ -385,6 +388,7 @@ export async function executeFreeGatewayTask<T>(request: FreeGatewayRequest<T>):
       outputTokens: totalOutputTokens || null,
       providerCostUsd: totalCost || null,
       creditsCharged: 0,
+      refinement: observeRefinement(request.refinementAnalytics, result),
       status: 'succeeded',
       latencyMs: Date.now() - startedAt,
       source: request.source,

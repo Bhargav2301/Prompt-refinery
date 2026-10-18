@@ -11,13 +11,13 @@
         <p id="link-status" role="status"></p>
       </section>
       <form id="settings-form">
-        <label for="api-base">Clarift API URL</label>
-        <input id="api-base" name="apiBase" type="url" required>
+        <p>Connect your Clarift account once. Clarift connects automatically; no API URL or API key is needed.</p>
         <label for="mode">Refinement mode</label>
         <select id="mode" name="mode"><option value="quick_refine">Quick Refine</option><option value="guided_fix">Guided Fix</option><option value="full_council">Full Council</option></select>
         <label for="technique">Refinement technique</label>
         <select id="technique" name="technique"><option>Zero-shot</option><option>Few-shot</option><option>Chain-of-thought</option><option>Tree-of-thoughts</option><option>Role / persona</option><option>Prompt chaining</option><option>ReAct</option><option>Meta / reflection</option></select>
-        <button type="submit">Save Settings</button>
+        <label><input id="analytics-consent" type="checkbox" name="analyticsConsent"> Share optional refinement statistics</label>
+        <p>Share technique signals, redo counts and changed setting names, without prompt or chat text. Turn off to stop future sharing. Settings save automatically.</p>
         <p id="status" role="status"></p>
       </form>
     </main>

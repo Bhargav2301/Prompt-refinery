@@ -3,6 +3,8 @@ import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { getAdminFirestore } from './firebase-admin';
 import type { ClariftTask } from './credit-service';
 import type { InferenceMode, InferenceProviderName } from './provider-key-service';
+import type { RefinementObservation } from '@/lib/refinement-observation';
+import { TenantUsageSchema } from './usage-telemetry-schema';
 
 export interface TenantUsageInput {
   requestId: string;
@@ -20,6 +22,7 @@ export interface TenantUsageInput {
   status: 'succeeded' | 'failed';
   latencyMs: number;
   source: 'app' | 'api' | 'extension';
+  refinement?: RefinementObservation | null;
   errorCode?: string | null;
   itemCount?: number | null;
   qualityTier?: 'generative' | 'fallback' | null;
@@ -36,48 +39,47 @@ export interface TenantUsageInput {
   }>;
 }
 
-export async function recordTenantUsage(input: TenantUsageInput) {
-  const firestore = getAdminFirestore();
-  const now = new Date();
-  const day = now.toISOString().slice(0, 10);
-  const eventRef = firestore.doc(`usageEvents/${input.requestId}`);
-  const aggregateRef = firestore.doc(`usageDailyAggregates/${input.tenantId}_${day}`);
-  const batch = firestore.batch();
-  batch.set(eventRef, {
-    ...input,
-    model: input.model?.slice(0, 160) || null,
-    inputTokens: Number.isFinite(input.inputTokens) ? input.inputTokens : null,
-    outputTokens: Number.isFinite(input.outputTokens) ? input.outputTokens : null,
-    providerCostUsd: Number.isFinite(input.providerCostUsd) ? input.providerCostUsd : null,
-    errorCode: input.errorCode?.slice(0, 120) || null,
-    fallbackReason: input.fallbackReason?.slice(0, 120) || null,
-    attempts: (input.attempts ?? []).slice(0, 3).map((attempt) => ({
-      provider: attempt.provider.slice(0, 40),
-      model: attempt.model.slice(0, 160),
-      status: attempt.status.slice(0, 40),
-      inputTokens: Number.isFinite(attempt.inputTokens) ? attempt.inputTokens : null,
-      outputTokens: Number.isFinite(attempt.outputTokens) ? attempt.outputTokens : null,
-      costUsd: Number.isFinite(attempt.costUsd) ? attempt.costUsd : null,
-      errorCode: attempt.errorCode?.slice(0, 120) || null,
-      httpStatus: Number.isInteger(attempt.httpStatus) ? attempt.httpStatus : null,
-    })),
-    itemCount: Number.isFinite(input.itemCount) ? input.itemCount : null,
-    createdAt: Timestamp.fromDate(now),
-    expiresAt: Timestamp.fromMillis(now.getTime() + 90 * 24 * 60 * 60 * 1000),
-  }, { merge: false });
-  batch.set(aggregateRef, {
-    tenantId: input.tenantId,
-    day,
-    requestCount: FieldValue.increment(1),
-    successCount: FieldValue.increment(input.status === 'succeeded' ? 1 : 0),
-    failureCount: FieldValue.increment(input.status === 'failed' ? 1 : 0),
-    generativeCount: FieldValue.increment(input.qualityTier === 'generative' ? 1 : 0),
-    fallbackCount: FieldValue.increment(input.qualityTier === 'fallback' ? 1 : 0),
-    inputTokens: FieldValue.increment(Number.isFinite(input.inputTokens) ? Number(input.inputTokens) : 0),
-    outputTokens: FieldValue.increment(Number.isFinite(input.outputTokens) ? Number(input.outputTokens) : 0),
-    providerCostUsd: FieldValue.increment(Number.isFinite(input.providerCostUsd) ? Number(input.providerCostUsd) : 0),
-    expiresAt: Timestamp.fromMillis(now.getTime() + 13 * 31 * 24 * 60 * 60 * 1000),
-    updatedAt: Timestamp.fromDate(now),
-  }, { merge: true });
-  await batch.commit();
+export async function recordTenantUsage(input: TenantUsageInput, dependencies = {
+  getFirestore: getAdminFirestore,
+  now: () => new Date(),
+}) {
+  const parsed = TenantUsageSchema.safeParse(input);
+  // Never log the input or Zod issues: either can contain private values.
+  if (!parsed.success) return;
+  const event = parsed.data;
+  try {
+    const firestore = dependencies.getFirestore();
+    const now = dependencies.now();
+    const day = now.toISOString().slice(0, 10);
+    const eventRef = firestore.doc(`usageEvents/${event.requestId}`);
+    const aggregateRef = firestore.doc(`usageDailyAggregates/${event.tenantId}_${day}`);
+    const sourceRef = firestore.doc(`usageSourceDailyAggregates/${event.tenantId}_${day}_${event.source}`);
+    await firestore.runTransaction(async (batch) => {
+    if ((await batch.get(eventRef)).exists) return;
+    batch.set(eventRef, {
+      ...event,
+      createdAt: Timestamp.fromDate(now),
+      expiresAt: Timestamp.fromMillis(now.getTime() + 90 * 24 * 60 * 60 * 1000),
+    }, { merge: false });
+    const aggregate = {
+      tenantId: event.tenantId,
+      day,
+      requestCount: FieldValue.increment(1),
+      successCount: FieldValue.increment(event.status === 'succeeded' ? 1 : 0),
+      failureCount: FieldValue.increment(event.status === 'failed' ? 1 : 0),
+      generativeCount: FieldValue.increment(event.qualityTier === 'generative' ? 1 : 0),
+      fallbackCount: FieldValue.increment(event.qualityTier === 'fallback' ? 1 : 0),
+      inputTokens: FieldValue.increment(event.inputTokens ?? 0),
+      outputTokens: FieldValue.increment(event.outputTokens ?? 0),
+      providerCostUsd: FieldValue.increment(event.providerCostUsd ?? 0),
+      expiresAt: Timestamp.fromMillis(now.getTime() + 13 * 31 * 24 * 60 * 60 * 1000),
+      updatedAt: Timestamp.fromDate(now),
+    };
+    batch.set(aggregateRef, aggregate, { merge: true });
+    batch.set(sourceRef, { ...aggregate, source: event.source, creditsCharged: FieldValue.increment(event.creditsCharged) }, { merge: true });
+    });
+  } catch {
+    // Credit settlement is separate; telemetry failure must not retry a completed task.
+    console.warn('Usage telemetry write unavailable.');
+  }
 }

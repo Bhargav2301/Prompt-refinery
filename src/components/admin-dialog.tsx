@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
+import { OwnerAnalyticsPanel } from '@/components/owner-analytics-panel';
 
 interface PromoCodeRecord { id: string; prefix: string; label: string | null; mode: string; maxRedemptions: number | null; redemptionCount: number; active: boolean }
 interface PromoUser { id: string; uid: string; email: string; codeId: string }
@@ -206,13 +207,16 @@ export function AdminPanel() {
       <Button type="button" variant="outline" size="icon" onClick={refresh} disabled={busy}><RefreshCw className={`h-4 w-4 ${busy ? 'animate-spin' : ''}`} /><span className="sr-only">Refresh administration data</span></Button>
     </div>
     <Tabs defaultValue="overview">
-      <TabsList className="grid h-auto grid-cols-3 gap-1 sm:grid-cols-5">
+      <TabsList className="grid h-auto grid-cols-3 gap-1 sm:grid-cols-6">
         <TabsTrigger value="overview">Overview</TabsTrigger>
+        <TabsTrigger value="analytics">Analytics</TabsTrigger>
         <TabsTrigger value="users">Users</TabsTrigger>
         <TabsTrigger value="codes">Codes</TabsTrigger>
         <TabsTrigger value="inference">Inference</TabsTrigger>
         <TabsTrigger value="audit">Audit</TabsTrigger>
       </TabsList>
+
+      <TabsContent value="analytics" className="pt-4"><OwnerAnalyticsPanel /></TabsContent>
 
       <TabsContent value="overview" className="space-y-4 pt-4">
         {loadErrors.system && <p className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">System readiness could not load. Use Refresh to try again.</p>}

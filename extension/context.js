@@ -224,14 +224,16 @@ byId('copy-handoff').addEventListener('click', () => {
   navigator.clipboard.writeText(byId('handoff-request').value).then(() => status('Copied. Paste and submit it once in the source chat, then transfer the resulting context pill.')).catch(report);
 });
 byId('copy-search').addEventListener('click', () => { copy('search-prompt').catch(report); });
+let previousSearchVersion = null;
 byId('refine-search').addEventListener('click', async () => {
   const original = byId('search-prompt').value;
   byId('refine-search').disabled = true;
   try {
-    const response = await withRefinementTimeout(chrome.runtime.sendMessage({ type: 'clarift-refine', prompt: original }));
+    const response = await withRefinementTimeout(chrome.runtime.sendMessage({ type: 'clarift-refine', prompt: original, ...(previousSearchVersion?.output === original ? { previous: previousSearchVersion.version } : {}) }));
     if (!response?.ok) throw new Error(response?.error || 'Refinement failed.');
     if (byId('search-prompt').value !== original) throw new Error('Your prompt changed while refining. Current text was preserved; try again.');
     byId('search-prompt').value = response.refinedPrompt;
+    previousSearchVersion = { output: response.refinedPrompt, version: response.version };
     status(response.qualityTier === 'fallback' ? 'Refined in Basic mode. Review and copy your prompt.' : 'Prompt refined. Review and copy it.');
   } catch (error) { report(error); }
   finally { byId('refine-search').disabled = false; }

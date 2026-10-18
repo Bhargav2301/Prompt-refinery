@@ -7,6 +7,7 @@
   let statusBox = null;
   let statusTimer = null;
   let reviewedContext = null;
+  const previousVersions = new WeakMap();
   const RESPONSE_TIMEOUT_MS = 50000;
 
   function withResponseTimeout(promise) {
@@ -128,6 +129,7 @@
       const response = await withResponseTimeout(
         chrome.runtime.sendMessage({
           type: 'clarift-refine', prompt,
+          ...(previousVersions.get(editor)?.output === prompt && previousVersions.get(editor)?.pageKey === pageKey ? { previous: previousVersions.get(editor).version } : {}),
           ...(reviewedContext?.pageKey === pageKey ? { context: { text: reviewedContext.text, consent: true } } : {})
         })
       );
@@ -138,6 +140,7 @@
       if (typeof start === 'number') editor.setSelectionRange(start, end);
       else if (range && selection) { selection.removeAllRanges(); selection.addRange(range); }
       replaceEditorText(editor, response.refinedPrompt);
+      previousVersions.set(editor, { output: response.refinedPrompt, pageKey, version: { ...response.version, context: reviewedContext?.pageKey === pageKey ? reviewedContext.text : undefined } });
       if (response.qualityTier === 'fallback') {
         const basic = response.basicMode || {};
         let message = 'Prompt refined in Basic mode.';
