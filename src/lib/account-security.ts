@@ -14,11 +14,8 @@ export function accountErrorMessage(error: unknown) {
   if (code === 'auth/too-many-requests') return 'Please wait a few minutes before trying again.';
   if (code === 'auth/network-request-failed') return 'Check your connection and try again.';
   if (code === 'auth/weak-password' || code === 'auth/password-does-not-meet-requirements') return 'Choose a stronger password that meets the account password requirements.';
-  if (code === 'auth/requires-recent-login') return 'Sign in again before changing your password.';
+  if (code === 'auth/requires-recent-login') return 'Sign in again to continue.';
   if (code === 'auth/invalid-email') return 'Enter a valid email address.';
+  if (code === 'auth/email-delivery-unavailable') return 'Account emails are temporarily unavailable. Please try again shortly.';
   return 'This request could not be completed. Please try again.';
-}
-
-export function emailActionSettings(origin: string) {
-  return { url: `${origin}/`, handleCodeInApp: false };
 }

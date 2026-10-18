@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { sendEmailVerification } from 'firebase/auth';
-import { accountErrorMessage, emailActionSettings, newPasswordSchema } from '@/lib/account-security';
+import { requestVerificationEmail } from '@/lib/account-email-client';
+import { accountErrorMessage, newPasswordSchema } from '@/lib/account-security';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -77,7 +77,7 @@ export function LoginPage({ showBrandMessage = false }: { showBrandMessage?: boo
     try {
       const credential = await initiateEmailSignUp(auth, values.email, values.password);
       try {
-        await sendEmailVerification(credential.user, emailActionSettings(window.location.origin));
+        await requestVerificationEmail(credential.user);
         toast({ title: 'Verify your email', description: 'We sent a verification link to your signup email. Open it to confirm your account.' });
       } catch {
         toast({ title: 'Account created', description: 'The verification email could not be sent. Use Resend verification email in Settings.' });

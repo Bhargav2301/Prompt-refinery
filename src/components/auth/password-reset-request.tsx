@@ -2,15 +2,13 @@
 
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { sendPasswordResetEmail } from 'firebase/auth';
-import { useAuth } from '@/firebase';
+import { requestPasswordResetEmail } from '@/lib/account-email-client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { accountErrorMessage, emailActionSettings } from '@/lib/account-security';
+import { accountErrorMessage } from '@/lib/account-security';
 
 export function PasswordResetRequest() {
-  const auth = useAuth();
   const [email, setEmail] = useState('');
   const [pending, setPending] = useState(false);
   const [sent, setSent] = useState(false);
@@ -20,12 +18,10 @@ export function PasswordResetRequest() {
     if (pending) return;
     setPending(true); setError('');
     try {
-      await sendPasswordResetEmail(auth, email.trim(), emailActionSettings(window.location.origin));
+      await requestPasswordResetEmail(email);
       setSent(true);
     } catch (error) {
-      // Never disclose whether an address has a Clarift account.
-      if ((error as { code?: string }).code === 'auth/user-not-found') setSent(true);
-      else setError(accountErrorMessage(error));
+      setError(accountErrorMessage(error));
     } finally { setPending(false); }
   }
   return <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-5 px-5 py-12">

@@ -227,6 +227,14 @@ env:
     secret: RESEND_API_KEY
     availability:
       - RUNTIME
+  - variable: AUTH_EMAIL_FROM
+    value: Clarift <accounts@mail.clarift.org>
+    availability:
+      - RUNTIME
+  - variable: AUTH_EMAIL_DAILY_LIMIT
+    value: "80"
+    availability:
+      - RUNTIME
   - variable: SIGNUP_NOTIFICATION_EMAILS
     value: bhargavdvs2001@gmail.com
     availability:
