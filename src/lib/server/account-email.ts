@@ -106,7 +106,9 @@ export async function handleAccountEmail(request: Request, deps: AccountEmailDep
     if (!addressLimit.allowed) return input.action === 'resetPassword' ? reply() : reply(429, 'auth/too-many-requests', addressLimit.retryAfterSeconds);
     if (input.action === 'resetPassword') {
       const user = await deps.auth.getUserByEmail(email);
-      if (user.disabled || !user.providerData.some(provider => provider.providerId === 'password')) return reply();
+      // Firebase recovery verifies inbox ownership and can establish a password for
+      // an existing federated account. Do not silently exclude Google sign-ups.
+      if (user.disabled || !user.email) return reply();
       email = user.email!;
     }
     const dailyLimit = Number(deps.environment.AUTH_EMAIL_DAILY_LIMIT || 80);

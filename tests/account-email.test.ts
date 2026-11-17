@@ -71,7 +71,7 @@ test('reset response does not reveal missing accounts, Google-only accounts, thr
     if (scenario === 'provider-failed') deps.send = async () => { throw new Error('API secret and private address'); };
     const response = await handleAccountEmail(request({ action: 'resetPassword', email: user.email }), deps);
     assert.equal(response.status, 200); outcomes.push(await response.text());
-    if (scenario === 'exists') assert.equal(sent.length, 1); else assert.equal(sent.length, 0);
+    if (scenario === 'exists' || scenario === 'google') assert.equal(sent.length, 1); else assert.equal(sent.length, 0);
   }
   assert.equal(new Set(outcomes).size, 1);
 });
@@ -95,4 +95,39 @@ test('distributed IP, address and global budgets stop sending and return safe er
   }
   const { deps, sent } = setup(); deps.environment = { ...environment, RESEND_API_KEY: '' };
   assert.equal((await handleAccountEmail(request({ action: 'verifyEmail' }, { token: 'valid' }), deps)).status, 503); assert.equal(sent.length, 0);
+});
+
+test('registered Google and email-only accounts receive reset links without an existing password provider', async () => {
+  for (const providerData of [[{ providerId: 'google.com' }], [], [{ providerId: 'google.com' }, { providerId: 'password' }]]) {
+    const { deps, sent } = setup();
+    deps.auth.getUserByEmail = async email => { assert.equal(email, 'OWNER@example.com'); return { ...user, providerData } as UserRecord; };
+    const response = await handleAccountEmail(request({ action: 'resetPassword', email: '  OWNER@example.com  ' }), deps);
+    assert.equal(response.status, 200); assert.equal(response.headers.get('Cache-Control'), 'no-store');
+    assert.equal(sent.length, 1, 'Active registered accounts must not be silently skipped based on sign-in provider');
+    assert.equal(sent[0].to, user.email); assert.match(sent[0].text, /auth\/action\?mode=resetPassword/);
+    assert.deepEqual(await response.json(), { ok: true });
+  }
+});
+
+test('Google account recovery still obeys per-address and daily email limits', async () => {
+  for (const bucket of ['account-email-address', 'account-email-daily']) {
+    const { deps, sent } = setup();
+    deps.auth.getUserByEmail = async () => ({ ...user, providerData: [{ providerId: 'google.com' }] } as UserRecord);
+    deps.limit = async input => ({ allowed: input.bucket !== bucket, remaining: 0, retryAfterSeconds: 60 });
+    const response = await handleAccountEmail(request({ action: 'resetPassword', email: user.email }), deps);
+    assert.equal(response.status, 200); assert.deepEqual(await response.json(), { ok: true });
+    assert.equal(sent.length, 0);
+  }
+});
+
+test('disabled Google accounts cannot request recovery and link failures never leak account data', async () => {
+  const disabled = setup();
+  disabled.deps.auth.getUserByEmail = async () => ({ ...user, disabled: true, providerData: [{ providerId: 'google.com' }] } as UserRecord);
+  assert.equal((await handleAccountEmail(request({ action: 'resetPassword', email: user.email }), disabled.deps)).status, 200);
+  assert.equal(disabled.sent.length, 0);
+  const failure = setup();
+  failure.deps.auth.generatePasswordResetLink = async () => { throw Object.assign(new Error('Private address or reset secret'), { code: 'auth/internal-error' }); };
+  const response = await handleAccountEmail(request({ action: 'resetPassword', email: user.email }), failure.deps);
+  assert.deepEqual(await response.json(), { ok: true }); assert.equal(failure.sent.length, 0);
+  assert.deepEqual(failure.reports, ['resetPassword:auth/internal-error']);
 });
