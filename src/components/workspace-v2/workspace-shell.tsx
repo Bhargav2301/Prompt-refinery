@@ -4,6 +4,8 @@ import { useState, type ReactNode } from 'react';
 import { getAuth, signOut } from 'firebase/auth';
 import {
   BarChart3,
+  BookOpen,
+  MessageSquare,
   Crown,
   FileText,
   History,
@@ -17,6 +19,8 @@ import {
   Wand2,
 } from 'lucide-react';
 
+import { FeedbackDialog } from '@/components/community/feedback-panel';
+import { NotificationBell } from '@/components/community/notification-bell';
 import { Logo } from '@/components/icons/logo';
 import { SettingsDialog } from '@/components/settings-dialog';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -42,12 +46,13 @@ import {
 } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
 
-export type WorkspaceDestination = 'refinery' | 'history' | 'library' | 'evaluator' | 'converter' | 'saved' | 'analytics' | 'shared';
+export type WorkspaceDestination = 'refinery' | 'history' | 'library' | 'evaluator' | 'converter' | 'saved' | 'analytics' | 'shared' | 'techniques';
 
 const destinations = [
   { id: 'refinery', label: 'Workspace', icon: Wand2, pro: false },
   { id: 'history', label: 'History', icon: History, pro: false },
   { id: 'library', label: 'Prompt library', icon: Images, pro: false },
+  { id: 'techniques', label: 'Technique guide', icon: BookOpen, pro: false },
   { id: 'evaluator', label: 'Evaluator', icon: Gauge, pro: false },
   { id: 'converter', label: 'Converter', icon: FileText, pro: false },
   { id: 'saved', label: 'Saved', icon: Library, pro: false },
@@ -56,7 +61,7 @@ const destinations = [
 ] as const;
 
 const mobilePrimary = ['refinery', 'history', 'library', 'saved'] as const;
-const mobileMore = ['evaluator', 'converter', 'analytics', 'shared'] as const;
+const mobileMore = ['techniques', 'evaluator', 'converter', 'analytics', 'shared'] as const;
 
 interface WorkspaceShellProps {
   activeDestination: WorkspaceDestination;
@@ -88,6 +93,9 @@ export function WorkspaceShell({
   showAccountControls = true,
 }: WorkspaceShellProps) {
   const [moreOpen, setMoreOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedbackThread, setFeedbackThread] = useState<string | undefined>();
+  const openFeedback = (id?: string) => { setFeedbackThread(id); setMoreOpen(false); setFeedbackOpen(true); };
 
   const selectDestination = (destination: WorkspaceDestination) => {
     onDestinationChange(destination);
@@ -139,6 +147,7 @@ export function WorkspaceShell({
         {showAccountControls && <SidebarSeparator />}
         {showAccountControls && <SidebarFooter>
           <SidebarMenu>
+            <SidebarMenuItem><SidebarMenuButton type="button" tooltip="Suggestions & complaints" onClick={() => openFeedback()}><MessageSquare /><span>Feedback</span></SidebarMenuButton></SidebarMenuItem>
             <SidebarMenuItem>
               <SettingsDialog trigger={
                 <SidebarMenuButton type="button" tooltip="Settings"><Settings /><span>Settings</span></SidebarMenuButton>
@@ -164,6 +173,7 @@ export function WorkspaceShell({
           </div>
           <div className="flex items-center gap-2">
             <Badge variant={isPro ? 'default' : 'outline'} className="hidden gap-1 sm:flex"><Crown className="h-3 w-3" />{planLabel}</Badge>
+            {showAccountControls && <NotificationBell onOpenFeedback={openFeedback} />}
             {showAccountControls && <SettingsDialog />}
             <ThemeToggle />
           </div>
@@ -204,6 +214,7 @@ export function WorkspaceShell({
         </button>
       </nav>
 
+      {showAccountControls && <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} threadId={feedbackThread} />}
       <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
         <SheetContent side="bottom" className="rounded-t-lg pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
           <SheetHeader className="text-left">
@@ -220,6 +231,7 @@ export function WorkspaceShell({
                 </Button>
               );
             })}
+            {showAccountControls && <Button variant="ghost" className="justify-start" onClick={() => openFeedback()}><MessageSquare className="h-4 w-4" />Suggestions & complaints</Button>}
             {showAccountControls && <SettingsDialog trigger={<Button type="button" variant="ghost" className="justify-start"><Settings className="h-4 w-4" />Settings</Button>} />}
             {showAccountControls && <Button type="button" variant="ghost" className="justify-start" onClick={handleSignOut}><LogOut className="h-4 w-4" />Sign out</Button>}
           </div>

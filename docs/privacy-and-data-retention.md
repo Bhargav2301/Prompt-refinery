@@ -44,3 +44,7 @@ These are requirements/proposals, not verified lifecycle behavior. The root writ
 ## Refinement statistics release
 
 The explicitly approved follow-up adds default-off optional technique signals, redo counts and changed parameter names, with a per-request choice and server kill switch. No prompt/reference content is copied into analytics. Essential usage is split by website, extension and API source for future accounting without changing prices. See [the contract and limits](privacy-analytics/13-refinement-metrics-release.md). The earlier no-behavioral-collection description applies to PA-008a only.
+
+## User-submitted feedback (0.2.0)
+
+Users can explicitly share a suggestion or complaint with the owner through the feedback form. Only the submitting account and the active owner can access these conversations through authenticated APIs. Replies and release read receipts are private account data. Feedback is not usage telemetry and is never automatically sent to an AI model. The owner inbox does not grant access to the user’s other prompts or files. Feedback currently has no automatic expiry; account export/deletion must cover feedbackThreads and feedbackAccounts descendants. See [implementation and evidence](community-features-2026-11-17.md).

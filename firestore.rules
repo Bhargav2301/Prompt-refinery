@@ -330,6 +330,10 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Private support content and notification receipts are accessed only via authenticated APIs.
+    match /feedbackThreads/{document=**} { allow read, write: if false; }
+    match /feedbackAccounts/{document=**} { allow read, write: if false; }
+
     match /signupNotifications/{document=**} {
       allow read, write: if false;
     }
