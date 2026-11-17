@@ -42,3 +42,5 @@ The public guide sources are linked per technique: Anthropic prompting guidance/
 The development fixture /community-preview returns 404 in production. UI tests must intercept its synthetic API calls; its synthetic token cannot authenticate against the real service. Emulator checks test actual Firestore behavior separately. Neither is a claim of a real user's production conversation.
 
 Browser reproduction: start npm run dev, import runCommunityUi from tests/browser/community-ui.mjs in a Playwright session and call it with an isolated page. Optional baseUrl and outputDirectory configure the server and screenshot location. All API responses in this UI check are synthetic; the emulator suite separately verifies real storage semantics.
+
+Final long-history check: 67 synthetic notifications, marked read in bounded batches, persisted as read after reload. Historical catalog versions are literal values so future APP_VERSION changes do not relabel older entries.

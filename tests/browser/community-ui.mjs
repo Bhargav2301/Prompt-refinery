@@ -1,13 +1,14 @@
 export async function runCommunityUi(page, { baseUrl = 'http://localhost:9002', outputDirectory = 'tmp' } = {}) {
-  await (await import('node:fs/promises')).mkdir(outputDirectory, { recursive: true });
   await page.unrouteAll({ behavior: 'wait' });
   const threads = new Map(); const notes = [{id:'release-0.2.0',kind:'release',version:'0.2.0',title:'Learn prompting and stay in touch',body:'Synthetic release note',createdAt:'2026-11-17T00:00:00.000Z',read:false}];
+  notes.push(...Array.from({length:65}, (_, i) => ({id:'synthetic-release-'+i,kind:'release',version:'0.1.'+i,title:'Synthetic older update '+i,body:'Synthetic historical notice',createdAt:'2026-01-01T00:00:00.000Z',read:false})));
   let failOnce = true; const attempts = [];
   await page.route('**/api/**', async route => {
     const req = route.request(); const path = new URL(req.url()).pathname; const method = req.method();
     const data = method === 'GET' ? null : req.postDataJSON();
     const send = (json, status = 200) => route.fulfill({status,contentType:'application/json',body:JSON.stringify(json)});
     if(path === '/api/notifications') {
+      if(method === 'POST' && data.ids.length > 60) return send({error:{message:'Notification batch limit exceeded'}},400);
       if(method === 'POST') for(const note of notes) if(data.ids.includes(note.id)) note.read = true;
       return send(method === 'POST' ? {ok:true} : {items:notes,nextCursor:null,unread:notes.filter(n=>!n.read).length,currentVersion:'0.2.0'});
     }
@@ -74,5 +75,5 @@ export async function runCommunityUi(page, { baseUrl = 'http://localhost:9002', 
   if([...threads.values()][0].status!=='open') throw new Error('Follow-up did not reopen');
   await page.goto('about:blank');
   await page.unrouteAll({behavior:'wait'});
-  return {feedback:true,retryPreservesIdAndDraft:true,ownerReply:true,resolution:true,notificationDeepLink:true,readReceiptsSurviveReload:true,userFollowup:true,mobileOverflow:false};
+  return {feedback:true,retryPreservesIdAndDraft:true,ownerReply:true,resolution:true,notificationDeepLink:true,readReceiptsSurviveReload:true,bulkReadBeyondSixty:true,userFollowup:true,mobileOverflow:false};
 }

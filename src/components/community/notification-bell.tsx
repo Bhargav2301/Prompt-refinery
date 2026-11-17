@@ -38,7 +38,9 @@ export function NotificationBell({ onOpenFeedback }: { onOpenFeedback: (id: stri
   async function mark(ids: string[]) {
     if (!ids.length) return; setMarking(true);
     try {
-      await api('/api/notifications', 'POST', { ids });
+      for (let offset = 0; offset < ids.length; offset += 60) {
+        await api('/api/notifications', 'POST', { ids: ids.slice(offset, offset + 60) });
+      }
       setItems(previous => previous.map(item => ids.includes(item.id) ? { ...item, read: true } : item));
       const result = await api<NotificationPage>('/api/notifications');
       setUnread(result.unread); setError('');
@@ -52,7 +54,7 @@ export function NotificationBell({ onOpenFeedback }: { onOpenFeedback: (id: stri
     </Button>
     <Dialog open={open} onOpenChange={setOpen}><DialogContent className="w-[calc(100vw-2rem)] max-h-[85dvh] max-w-xl overflow-y-auto">
       <DialogHeader><DialogTitle>Notifications</DialogTitle><DialogDescription>Clarift v{APP_VERSION} · Release updates and private replies.</DialogDescription></DialogHeader>
-      <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-sm text-muted-foreground">{unread} unread</span><div className="flex gap-2"><Button variant="outline" size="sm" disabled={marking || !items.some(item => !item.read)} onClick={() => void mark(items.filter(item => !item.read).slice(0, 60).map(item => item.id))}>Mark displayed as read</Button><Button size="icon" variant="outline" disabled={loading} onClick={() => void load()} aria-label="Refresh notifications"><RefreshCw className="h-4 w-4" /></Button></div></div>
+      <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-sm text-muted-foreground">{unread} unread</span><div className="flex gap-2"><Button variant="outline" size="sm" disabled={marking || !items.some(item => !item.read)} onClick={() => void mark(items.filter(item => !item.read).map(item => item.id))}>Mark displayed as read</Button><Button size="icon" variant="outline" disabled={loading} onClick={() => void load()} aria-label="Refresh notifications"><RefreshCw className="h-4 w-4" /></Button></div></div>
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       {loading && <p role="status" className="text-sm text-muted-foreground">Loading…</p>}
       <ul className="space-y-3">{items.map(item => <li key={item.id} className={'rounded-lg border p-4 ' + (!item.read ? 'border-primary/40 bg-primary/5' : '')}>
