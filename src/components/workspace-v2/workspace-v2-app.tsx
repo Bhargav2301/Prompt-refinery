@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useContext, useState } from 'react';
+import { TechniqueGuide } from '@/components/technique-guide';
 import { ChatWorkspace } from '@/components/chats/chat-workspace';
 import { AnalyticsTab } from '@/components/prompt-refinery/analytics-tab';
 import { ConverterTab } from '@/components/prompt-refinery/converter-tab';
@@ -22,6 +23,7 @@ export function WorkspaceV2App() {
     monthlyUnits={subscription.freeAllowance?.refinement.monthly.remaining ?? null}
     availableCredits={subscription.availableCredits} reservedCredits={subscription.reservedCredits}>
     <div hidden={!showChat}><ChatWorkspace view={destination === 'history' || destination === 'library' ? destination : 'refinery'} onView={changeChatView} /></div>
+    {destination === 'techniques' && <TechniqueGuide />}
     {destination === 'evaluator' && <EvaluatorTab />}
     {destination === 'converter' && <ConverterTab projects={null} selectedProject={null} />}
     {destination === 'saved' && <SavedPromptsTab />}
