@@ -26,8 +26,8 @@ export function PasswordResetRequest() {
   }
   return <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-5 px-5 py-12">
     <h1 className="text-2xl font-semibold">Reset your password</h1>
-    <p className="text-sm text-muted-foreground">Enter the email you used to sign up. The email link confirms access to that inbox and lets you choose a new password.</p>
-    {sent ? <p role="status" className="rounded-lg border p-4">If this address has a password account, a reset email is on its way. Check your inbox and spam folder, then open the latest link.</p> : <form onSubmit={submit} className="space-y-4">
+    <p className="text-sm text-muted-foreground">Enter the email you used to sign up. The email link confirms access to that inbox and lets you choose a new password, including if you originally signed up with Google.</p>
+    {sent ? <p role="status" className="rounded-lg border p-4">Request received. If this email belongs to an active Clarift account, check your inbox and spam folder for a reset link. Open the latest link to create and confirm your password.</p> : <form onSubmit={submit} className="space-y-4">
       <div className="space-y-2"><Label htmlFor="reset-email">Account email</Label><Input id="reset-email" type="email" autoComplete="email" required value={email} onChange={event => setEmail(event.target.value)} /></div>
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       <Button disabled={pending} className="w-full">{pending ? 'Sending...' : 'Send reset link'}</Button>
