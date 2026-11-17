@@ -38,6 +38,7 @@ test('technique guide covers every selectable technique, with original examples,
 test('release version matches application metadata and read receipt IDs are unique', () => {
   assert.equal(JSON.parse(readFileSync('package.json','utf8')).version, APP_VERSION);
   assert.equal(JSON.parse(readFileSync('package-lock.json','utf8')).packages[''].version, APP_VERSION);
+  assert.equal(RELEASE_NOTES[0].version, APP_VERSION);
   assert.equal(new Set(RELEASE_NOTES.map(note => note.id)).size, RELEASE_NOTES.length);
   for (const note of RELEASE_NOTES) assert.ok(Number.isFinite(Date.parse(note.createdAt)));
 });
